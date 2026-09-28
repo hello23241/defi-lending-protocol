@@ -2,27 +2,39 @@ import { network } from "hardhat";
 
 const { ethers } = await network.create();
 
-async function main(): Promise<void> {
+async function main() {
   const [deployer] = await ethers.getSigners();
-  console.log(`Deploying contracts with account: ${deployer.address}`);
 
-  const usdt = await ethers.deployContract("MockERC20", ["Mock USDT", "USDT"]);
-  await usdt.waitForDeployment();
+  console.log("--------------------------------------------------");
+  console.log("Deploying contracts with account:", deployer.address);
+  console.log("Account balance:", (await ethers.provider.getBalance(deployer.address)).toString());
+  console.log("--------------------------------------------------");
 
-  const wbtc = await ethers.deployContract("MockERC20", ["Mock WBTC", "WBTC"]);
-  await wbtc.waitForDeployment();
+  // 1. Deploy MockUSDT
+  console.log("Deploying MockUSDT...");
+  const MockUSDT = await ethers.getContractFactory("MockUSDT");
+  const mockUSDT = await MockUSDT.deploy();
+  await mockUSDT.waitForDeployment();
+  const mockAddress = await mockUSDT.getAddress();
+  console.log(`MockUSDT deployed to: ${mockAddress}`);
 
-  const lending = await ethers.deployContract("PeerToPeerLending");
-  await lending.waitForDeployment();
+  // 2. Deploy LendingPool with MockUSDT address as collateral token
+  console.log("Deploying LendingPool...");
+  const LendingPool = await ethers.getContractFactory("LendingPool");
+  const lendingPool = await LendingPool.deploy(mockAddress);
+  await lendingPool.waitForDeployment();
+  const poolAddress = await lendingPool.getAddress();
+  console.log(`LendingPool deployed to: ${poolAddress}`);
 
-  console.log(`Mock USDT deployed to: ${await usdt.getAddress()}`);
-  console.log(`Mock WBTC deployed to: ${await wbtc.getAddress()}`);
-  console.log(`PeerToPeerLending deployed to: ${await lending.getAddress()}`);
+  console.log("--------------------------------------------------");
+  console.log("Deployment Complete!");
+  console.log("Save these deployed addresses for your Frontend configuration:");
+  console.log(`VITE_MOCK_USDT_ADDRESS="${mockAddress}"`);
+  console.log(`VITE_LENDING_POOL_ADDRESS="${poolAddress}"`);
+  console.log("--------------------------------------------------");
 }
 
-try {
-  await main();
-} catch (error) {
+main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
-}
+});
