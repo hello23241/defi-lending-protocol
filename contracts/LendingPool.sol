@@ -1,46 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./InterestRateModel.sol";
+import "./LendingPoolStorage.sol";
+import "./interfaces/IChainlinkOracle.sol";
+import "./libraries/DataTypes.sol";
 
-contract LendingPool is ReentrancyGuard {
-    IERC20 public immutable collateralToken;
-
+contract LendingPool is LendingPoolStorage, InterestRateModel {
     // Protocol Constants
     uint256 public constant LTV = 70;                   // Max borrow power: 70%
     uint256 public constant LIQUIDATION_THRESHOLD = 80; // Liquidation triggers at 80% LTV
     uint256 public constant LIQUIDATION_BONUS = 5;      // Liquidator receives 5% bonus collateral
-    uint256 public constant RESERVE_FACTOR = 10;        // 10% interest to protocol reserves
-    
-    // ~5% APY per second (scaled 1e18)
-    uint256 public constant BORROW_RATE_PER_SEC = 1585489599; 
-
-    // Price Oracle: 1 ETH = 2,655 USDT (1 USDT = 0.000376647834274953 ETH)
-    uint256 public usdtPriceInEth = 376647834274953;
-
-    // Global Liquidity Index for Lender Yield
-    uint256 public liquidityIndex = 1e18;
-    uint256 public lastGlobalUpdateTimestamp;
-    uint256 public totalEthDeposited;
-    uint256 public reserveBalance;
-
-    // Borrower State
-    mapping(address => uint256) public principalBorrowed;
-    mapping(address => uint256) public userCollateral;
-    mapping(address => uint256) public lastBorrowerUpdateTimestamp;
-
-    // Lender State
-    mapping(address => uint256) public lenderDepositShares;
-    mapping(address => uint256) public userLiquidityIndex;
-
-    struct UserAccountData {
-        uint256 totalCollateralETH;
-        uint256 totalDebtETH;
-        uint256 maxBorrowETH;
-        uint256 healthFactor;
-        uint256 lastUpdateTimestamp;
-    }
+    uint256 public constant RESERVE_FACTOR = 20;
+    uint256 public constant MIN_BUFFER = 10 ether;
+    uint256 public constant BUFFER_TARGET_PERCENT = 20;
+    uint256 public constant ORACLE_HEARTBEAT = 3600;
 
     event Deposit(address indexed lender, uint256 amount);
     event Withdraw(address indexed lender, uint256 amount);
@@ -49,11 +23,11 @@ contract LendingPool is ReentrancyGuard {
     event Borrow(address indexed borrower, uint256 amount);
     event Repay(address indexed borrower, uint256 amount);
     event Liquidated(address indexed borrower, address indexed liquidator, uint256 debtRepaid, uint256 collateralSeized);
+    event ProtocolFeesWithdrawn(address indexed owner, uint256 amount);
 
-    constructor(address _collateralToken) {
-        collateralToken = IERC20(_collateralToken);
-        lastGlobalUpdateTimestamp = block.timestamp;
-    }
+    constructor(address _collateralToken, address _priceOracle)
+        LendingPoolStorage(_collateralToken, _priceOracle)
+    {}
 
     // ------------------------------------------------------------------------
     // HELPERS
@@ -62,15 +36,23 @@ contract LendingPool is ReentrancyGuard {
     function getAccruedInterest(address borrower) public view returns (uint256) {
         if (principalBorrowed[borrower] == 0) return 0;
         uint256 timeElapsed = block.timestamp - lastBorrowerUpdateTimestamp[borrower];
-        return (principalBorrowed[borrower] * BORROW_RATE_PER_SEC * timeElapsed) / 1e18;
+        return calculateAccruedInterest(
+            principalBorrowed[borrower],
+            calculateBorrowRatePerSec(totalDebt, totalEthDeposited),
+            timeElapsed
+        );
     }
 
     function getTotalDebt(address borrower) public view returns (uint256) {
         return principalBorrowed[borrower] + getAccruedInterest(borrower);
     }
 
+    function getBorrowRatePerSec() public view returns (uint256) {
+        return calculateBorrowRatePerSec(totalDebt, totalEthDeposited);
+    }
+
     function getCollateralETHValue(uint256 usdtAmount) public view returns (uint256) {
-        return (usdtAmount * usdtPriceInEth) / 1e18;
+        return (usdtAmount * 1e18) / _getEthPriceUsd();
     }
 
     function getLenderBalance(address lender) public view returns (uint256) {
@@ -95,10 +77,12 @@ contract LendingPool is ReentrancyGuard {
         if (totalCollateralETH <= minRequiredCollateralETH) return 0;
 
         uint256 excessETH = totalCollateralETH - minRequiredCollateralETH;
-        return (excessETH * 1e18) / usdtPriceInEth;
+        return (excessETH * _getEthPriceUsd()) / 1e18;
     }
 
-    function getUserAccountData(address user) public view returns (UserAccountData memory data) {
+    function getUserAccountData(
+        address user
+    ) public view returns (DataTypes.UserAccountData memory data) {
     data.totalCollateralETH = getCollateralETHValue(userCollateral[user]);
     data.totalDebtETH = getTotalDebt(user);
     
@@ -125,6 +109,7 @@ contract LendingPool is ReentrancyGuard {
 
     function depositETH() external payable nonReentrant {
         require(msg.value > 0, "Zero deposit");
+        _updateGlobalState();
 
         if (lenderDepositShares[msg.sender] > 0) {
             lenderDepositShares[msg.sender] = getLenderBalance(msg.sender);
@@ -140,6 +125,7 @@ contract LendingPool is ReentrancyGuard {
 
     function withdrawETH(uint256 amount) external nonReentrant {
         require(amount > 0, "Zero withdrawal");
+        _updateGlobalState();
 
         uint256 totalBalance = getLenderBalance(msg.sender);
         require(totalBalance >= amount, "Exceeds lender balance");
@@ -174,18 +160,19 @@ contract LendingPool is ReentrancyGuard {
     function withdrawCollateral(uint256 amount) external nonReentrant {
         require(amount > 0, "Zero withdrawal");
         require(userCollateral[msg.sender] >= amount, "Exceeds deposited collateral");
+        _updateGlobalState();
 
         if (principalBorrowed[msg.sender] > 0) {
             uint256 accrued = getAccruedInterest(msg.sender);
             principalBorrowed[msg.sender] += accrued;
-            _distributeInterest(accrued);
+            totalDebt += accrued;
         }
         lastBorrowerUpdateTimestamp[msg.sender] = block.timestamp;
 
         userCollateral[msg.sender] -= amount;
 
         if (principalBorrowed[msg.sender] > 0) {
-            UserAccountData memory data = getUserAccountData(msg.sender);
+            DataTypes.UserAccountData memory data = getUserAccountData(msg.sender);
             require(data.healthFactor >= 1e18, "Withdrawal drops Health Factor below 1.0");
         }
 
@@ -194,19 +181,21 @@ contract LendingPool is ReentrancyGuard {
     }
 
     function borrowETH(uint256 amount) external nonReentrant {
+        _updateGlobalState();
         require(amount <= address(this).balance, "Insufficient pool liquidity");
 
         if (principalBorrowed[msg.sender] > 0) {
             uint256 accrued = getAccruedInterest(msg.sender);
             principalBorrowed[msg.sender] += accrued;
-            _distributeInterest(accrued);
+            totalDebt += accrued;
         }
         lastBorrowerUpdateTimestamp[msg.sender] = block.timestamp;
 
-        UserAccountData memory data = getUserAccountData(msg.sender);
+        DataTypes.UserAccountData memory data = getUserAccountData(msg.sender);
         require(amount <= data.maxBorrowETH, "Exceeds max borrow power (LTV)");
 
         principalBorrowed[msg.sender] += amount;
+        totalDebt += amount;
 
         (bool success, ) = payable(msg.sender).call{value: amount}("");
         require(success, "ETH transfer failed");
@@ -215,29 +204,32 @@ contract LendingPool is ReentrancyGuard {
     }
 
     function repayETH() external payable nonReentrant {
+        _updateGlobalState();
         uint256 accruedInterest = getAccruedInterest(msg.sender);
-        uint256 totalDebt = principalBorrowed[msg.sender] + accruedInterest;
+        uint256 debtAmount = principalBorrowed[msg.sender] + accruedInterest;
 
-        require(totalDebt > 0, "No active debt");
+        require(debtAmount > 0, "No active debt");
         require(msg.value > 0, "Zero repayment amount");
-
-        _distributeInterest(accruedInterest);
 
         uint256 payAmount = msg.value;
 
         // If payment covers debt (or within 0.0001 ETH of total debt), wipe debt completely
-        if (payAmount >= totalDebt || (totalDebt - payAmount) < 100000000000000) {
-            uint256 refundAmount = payAmount > totalDebt ? payAmount - totalDebt : 0;
+        if (payAmount >= debtAmount || (debtAmount - payAmount) < 100000000000000) {
+            uint256 refundAmount = payAmount > debtAmount ? payAmount - debtAmount : 0;
+            uint256 principal = principalBorrowed[msg.sender];
             principalBorrowed[msg.sender] = 0;
+            totalDebt -= principal;
             lastBorrowerUpdateTimestamp[msg.sender] = 0;
 
             if (refundAmount > 0) {
                 (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
                 require(success, "Refund failed");
             }
-            emit Repay(msg.sender, totalDebt);
+            emit Repay(msg.sender, debtAmount);
         } else {
-            principalBorrowed[msg.sender] = totalDebt - payAmount;
+            uint256 newPrincipal = debtAmount - payAmount;
+            totalDebt = totalDebt - principalBorrowed[msg.sender] + newPrincipal;
+            principalBorrowed[msg.sender] = newPrincipal;
             lastBorrowerUpdateTimestamp[msg.sender] = block.timestamp;
             emit Repay(msg.sender, payAmount);
         }
@@ -246,10 +238,18 @@ contract LendingPool is ReentrancyGuard {
     function _distributeInterest(uint256 interestAmount) internal {
         if (interestAmount == 0) return;
 
-        uint256 reserveShare = (interestAmount * RESERVE_FACTOR) / 100;
-        uint256 suppliersShare = interestAmount - reserveShare;
+        uint256 suppliersShare = (interestAmount * (100 - RESERVE_FACTOR)) / 100;
+        uint256 protocolShare = interestAmount - suppliersShare;
+        uint256 targetBuffer = (totalEthDeposited * BUFFER_TARGET_PERCENT) / 100;
+        if (targetBuffer < MIN_BUFFER) targetBuffer = MIN_BUFFER;
 
-        reserveBalance += reserveShare;
+        if (reserveBuffer < targetBuffer) {
+            uint256 bufferShare = protocolShare / 2;
+            reserveBuffer += bufferShare;
+            protocolFees += protocolShare - bufferShare;
+        } else {
+            protocolFees += protocolShare;
+        }
 
         if (totalEthDeposited > 0) {
             liquidityIndex += (suppliersShare * 1e18) / totalEthDeposited;
@@ -257,24 +257,61 @@ contract LendingPool is ReentrancyGuard {
     }
 
     function liquidate(address borrower) external payable nonReentrant {
-        UserAccountData memory data = getUserAccountData(borrower);
+        _updateGlobalState();
+        DataTypes.UserAccountData memory data = getUserAccountData(borrower);
         require(data.healthFactor < 1e18, "Position is healthy");
 
         uint256 debtToCover = data.totalDebtETH;
         require(msg.value >= debtToCover, "Insufficient ETH to cover debt");
 
         uint256 collateralToSeizeInETH = (debtToCover * (100 + LIQUIDATION_BONUS)) / 100;
-        uint256 collateralToSeizeUSDT = (collateralToSeizeInETH * 1e18) / usdtPriceInEth;
+        uint256 collateralToSeizeUSDT =
+            (collateralToSeizeInETH * _getEthPriceUsd()) / 1e18;
 
         if (collateralToSeizeUSDT > userCollateral[borrower]) {
             collateralToSeizeUSDT = userCollateral[borrower];
         }
 
+        totalDebt -= principalBorrowed[borrower];
         principalBorrowed[borrower] = 0;
         userCollateral[borrower] -= collateralToSeizeUSDT;
 
         require(collateralToken.transfer(msg.sender, collateralToSeizeUSDT), "Collateral transfer failed");
 
         emit Liquidated(borrower, msg.sender, debtToCover, collateralToSeizeUSDT);
+    }
+
+    function withdrawProtocolFees(uint256 amount) external onlyOwner {
+        require(amount <= protocolFees, "Exceeds protocol fees");
+        require(address(this).balance >= amount, "Insufficient pool liquidity");
+
+        protocolFees -= amount;
+        (bool success, ) = payable(owner()).call{value: amount}("");
+        require(success, "ETH transfer failed");
+        emit ProtocolFeesWithdrawn(owner(), amount);
+    }
+
+    function _updateGlobalState() internal {
+        uint256 elapsed = block.timestamp - lastGlobalUpdateTimestamp;
+        if (elapsed == 0) return;
+
+        if (totalDebt > 0) {
+            uint256 interest = calculateAccruedInterest(
+                totalDebt,
+                calculateBorrowRatePerSec(totalDebt, totalEthDeposited),
+                elapsed
+            );
+            _distributeInterest(interest);
+        }
+        lastGlobalUpdateTimestamp = block.timestamp;
+    }
+
+    function _getEthPriceUsd() internal view returns (uint256) {
+        (, int256 answer, , uint256 updatedAt, ) =
+            AggregatorV3Interface(priceOracle).latestRoundData();
+        require(answer > 0, "Invalid oracle answer");
+        require(updatedAt > 0, "Oracle has no update");
+        require(block.timestamp - updatedAt <= ORACLE_HEARTBEAT, "Stale oracle price");
+        return uint256(answer) * 1e10;
     }
 }

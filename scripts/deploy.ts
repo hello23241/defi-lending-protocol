@@ -19,10 +19,12 @@ async function main() {
   const mockAddress = await mockUSDT.getAddress();
   console.log(`MockUSDT deployed to: ${mockAddress}`);
 
+  const oracleAddress = "0x694AA1769357215DE4FAC081bf1f309aDC325306";
+
   // 2. Deploy LendingPool with MockUSDT address as collateral token
   console.log("Deploying LendingPool...");
   const LendingPool = await ethers.getContractFactory("LendingPool");
-  const lendingPool = await LendingPool.deploy(mockAddress);
+  const lendingPool = await LendingPool.deploy(mockAddress, oracleAddress);
   await lendingPool.waitForDeployment();
   const poolAddress = await lendingPool.getAddress();
   console.log(`LendingPool deployed to: ${poolAddress}`);

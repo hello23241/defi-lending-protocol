@@ -10,17 +10,33 @@ import * as Contracts from "./index.js";
 
 declare module "@nomicfoundation/hardhat-ethers/types" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
-  getContractFactory(name: 'LendingPool', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LendingPool__factory>
+  getContractFactory(name: 'InterestRateModel', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.InterestRateModel__factory>
+getContractFactory(name: 'LendingPoolStorage', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LendingPoolStorage__factory>
+getContractFactory(name: 'LendingPool', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LendingPool__factory>
+getContractFactory(name: 'MockChainlinkOracle', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MockChainlinkOracle__factory>
 getContractFactory(name: 'MockUSDT', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MockUSDT__factory>
+getContractFactory(name: 'AggregatorV3Interface', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AggregatorV3Interface__factory>
 
-  getContractAt(name: 'LendingPool', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LendingPool>
+  getContractAt(name: 'InterestRateModel', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.InterestRateModel>
+getContractAt(name: 'LendingPoolStorage', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LendingPoolStorage>
+getContractAt(name: 'LendingPool', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LendingPool>
+getContractAt(name: 'MockChainlinkOracle', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MockChainlinkOracle>
 getContractAt(name: 'MockUSDT', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MockUSDT>
+getContractAt(name: 'AggregatorV3Interface', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AggregatorV3Interface>
 
-  deployContract(name: 'LendingPool', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPool>
+  deployContract(name: 'InterestRateModel', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.InterestRateModel>
+deployContract(name: 'LendingPoolStorage', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPoolStorage>
+deployContract(name: 'LendingPool', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPool>
+deployContract(name: 'MockChainlinkOracle', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockChainlinkOracle>
 deployContract(name: 'MockUSDT', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockUSDT>
+deployContract(name: 'AggregatorV3Interface', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AggregatorV3Interface>
 
-  deployContract(name: 'LendingPool', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPool>
+  deployContract(name: 'InterestRateModel', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.InterestRateModel>
+deployContract(name: 'LendingPoolStorage', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPoolStorage>
+deployContract(name: 'LendingPool', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPool>
+deployContract(name: 'MockChainlinkOracle', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockChainlinkOracle>
 deployContract(name: 'MockUSDT', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockUSDT>
+deployContract(name: 'AggregatorV3Interface', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AggregatorV3Interface>
 
     // default types
     getContractFactory(

@@ -4,7 +4,7 @@
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "./common.js"
   
-export declare namespace LendingPool {
+export declare namespace DataTypes {
       
     export type UserAccountDataStruct = {totalCollateralETH: BigNumberish, totalDebtETH: BigNumberish, maxBorrowETH: BigNumberish, healthFactor: BigNumberish, lastUpdateTimestamp: BigNumberish}
 
@@ -13,20 +13,28 @@ export declare namespace LendingPool {
     }
 
   export interface LendingPoolInterface extends Interface {
-    getFunction(nameOrSignature: "BORROW_RATE_PER_SEC" | "LIQUIDATION_BONUS" | "LIQUIDATION_THRESHOLD" | "LTV" | "RESERVE_FACTOR" | "borrowETH" | "collateralToken" | "depositCollateral" | "depositETH" | "getAccruedInterest" | "getCollateralETHValue" | "getLenderBalance" | "getTotalDebt" | "getUserAccountData" | "getWithdrawableCollateral" | "lastBorrowerUpdateTimestamp" | "lastGlobalUpdateTimestamp" | "lenderDepositShares" | "liquidate" | "liquidityIndex" | "principalBorrowed" | "repayETH" | "reserveBalance" | "totalEthDeposited" | "usdtPriceInEth" | "userCollateral" | "userLiquidityIndex" | "withdrawCollateral" | "withdrawETH"): FunctionFragment;
+    getFunction(nameOrSignature: "BASE_RATE_APY" | "BUFFER_TARGET_PERCENT" | "LIQUIDATION_BONUS" | "LIQUIDATION_THRESHOLD" | "LTV" | "MIN_BUFFER" | "OPTIMAL_UTILIZATION" | "ORACLE_HEARTBEAT" | "RESERVE_FACTOR" | "SECONDS_PER_YEAR" | "SLOPE_1_APY" | "SLOPE_2_APY" | "borrowETH" | "collateralToken" | "depositCollateral" | "depositETH" | "getAccruedInterest" | "getBorrowRatePerSec" | "getCollateralETHValue" | "getLenderBalance" | "getTotalDebt" | "getUserAccountData" | "getWithdrawableCollateral" | "lastBorrowerUpdateTimestamp" | "lastGlobalUpdateTimestamp" | "lenderDepositShares" | "liquidate" | "liquidityIndex" | "owner" | "priceOracle" | "principalBorrowed" | "protocolFees" | "renounceOwnership" | "repayETH" | "reserveBuffer" | "totalDebt" | "totalEthDeposited" | "transferOwnership" | "userCollateral" | "userLiquidityIndex" | "withdrawCollateral" | "withdrawETH" | "withdrawProtocolFees"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "Borrow" | "CollateralDeposited" | "CollateralWithdrawn" | "Deposit" | "Liquidated" | "Repay" | "Withdraw"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "Borrow" | "CollateralDeposited" | "CollateralWithdrawn" | "Deposit" | "Liquidated" | "OwnershipTransferred" | "ProtocolFeesWithdrawn" | "Repay" | "Withdraw"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'BORROW_RATE_PER_SEC', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'BASE_RATE_APY', values?: undefined): string;
+encodeFunctionData(functionFragment: 'BUFFER_TARGET_PERCENT', values?: undefined): string;
 encodeFunctionData(functionFragment: 'LIQUIDATION_BONUS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'LIQUIDATION_THRESHOLD', values?: undefined): string;
 encodeFunctionData(functionFragment: 'LTV', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MIN_BUFFER', values?: undefined): string;
+encodeFunctionData(functionFragment: 'OPTIMAL_UTILIZATION', values?: undefined): string;
+encodeFunctionData(functionFragment: 'ORACLE_HEARTBEAT', values?: undefined): string;
 encodeFunctionData(functionFragment: 'RESERVE_FACTOR', values?: undefined): string;
+encodeFunctionData(functionFragment: 'SECONDS_PER_YEAR', values?: undefined): string;
+encodeFunctionData(functionFragment: 'SLOPE_1_APY', values?: undefined): string;
+encodeFunctionData(functionFragment: 'SLOPE_2_APY', values?: undefined): string;
 encodeFunctionData(functionFragment: 'borrowETH', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'collateralToken', values?: undefined): string;
 encodeFunctionData(functionFragment: 'depositCollateral', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'depositETH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getAccruedInterest', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getBorrowRatePerSec', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getCollateralETHValue', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getLenderBalance', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getTotalDebt', values: [AddressLike]): string;
@@ -37,26 +45,40 @@ encodeFunctionData(functionFragment: 'lastGlobalUpdateTimestamp', values?: undef
 encodeFunctionData(functionFragment: 'lenderDepositShares', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'liquidate', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'liquidityIndex', values?: undefined): string;
+encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
+encodeFunctionData(functionFragment: 'priceOracle', values?: undefined): string;
 encodeFunctionData(functionFragment: 'principalBorrowed', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'protocolFees', values?: undefined): string;
+encodeFunctionData(functionFragment: 'renounceOwnership', values?: undefined): string;
 encodeFunctionData(functionFragment: 'repayETH', values?: undefined): string;
-encodeFunctionData(functionFragment: 'reserveBalance', values?: undefined): string;
+encodeFunctionData(functionFragment: 'reserveBuffer', values?: undefined): string;
+encodeFunctionData(functionFragment: 'totalDebt', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalEthDeposited', values?: undefined): string;
-encodeFunctionData(functionFragment: 'usdtPriceInEth', values?: undefined): string;
+encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'userCollateral', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'userLiquidityIndex', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'withdrawCollateral', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'withdrawETH', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'withdrawProtocolFees', values: [BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'BORROW_RATE_PER_SEC', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'BASE_RATE_APY', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'BUFFER_TARGET_PERCENT', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'LIQUIDATION_BONUS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'LIQUIDATION_THRESHOLD', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'LTV', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MIN_BUFFER', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'OPTIMAL_UTILIZATION', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'ORACLE_HEARTBEAT', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'RESERVE_FACTOR', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'SECONDS_PER_YEAR', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'SLOPE_1_APY', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'SLOPE_2_APY', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'borrowETH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'collateralToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'depositCollateral', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'depositETH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAccruedInterest', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getBorrowRatePerSec', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getCollateralETHValue', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getLenderBalance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getTotalDebt', data: BytesLike): Result;
@@ -67,15 +89,21 @@ decodeFunctionResult(functionFragment: 'lastGlobalUpdateTimestamp', data: BytesL
 decodeFunctionResult(functionFragment: 'lenderDepositShares', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'liquidate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'liquidityIndex', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'priceOracle', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'principalBorrowed', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'protocolFees', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'renounceOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'repayETH', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'reserveBalance', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'reserveBuffer', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalDebt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalEthDeposited', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'usdtPriceInEth', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'userCollateral', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'userLiquidityIndex', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'withdrawCollateral', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike): Result;
   }
 
   
@@ -131,6 +159,30 @@ decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
       export type InputTuple = [borrower: AddressLike, liquidator: AddressLike, debtRepaid: BigNumberish, collateralSeized: BigNumberish];
       export type OutputTuple = [borrower: string, liquidator: string, debtRepaid: bigint, collateralSeized: bigint];
       export interface OutputObject {borrower: string, liquidator: string, debtRepaid: bigint, collateralSeized: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace OwnershipTransferredEvent {
+      export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+      export type OutputTuple = [previousOwner: string, newOwner: string];
+      export interface OutputObject {previousOwner: string, newOwner: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ProtocolFeesWithdrawnEvent {
+      export type InputTuple = [owner: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [owner: string, amount: bigint];
+      export interface OutputObject {owner: string, amount: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -197,7 +249,15 @@ decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
 
     
     
-    BORROW_RATE_PER_SEC: TypedContractMethod<
+    BASE_RATE_APY: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    BUFFER_TARGET_PERCENT: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -229,7 +289,55 @@ decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
     
 
     
+    MIN_BUFFER: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    OPTIMAL_UTILIZATION: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    ORACLE_HEARTBEAT: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     RESERVE_FACTOR: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    SECONDS_PER_YEAR: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    SLOPE_1_APY: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    SLOPE_2_APY: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -277,6 +385,14 @@ decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
     
 
     
+    getBorrowRatePerSec: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     getCollateralETHValue: TypedContractMethod<
       [usdtAmount: BigNumberish, ],
       [bigint],
@@ -303,7 +419,7 @@ decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
     
     getUserAccountData: TypedContractMethod<
       [user: AddressLike, ],
-      [LendingPool.UserAccountDataStructOutput],
+      [DataTypes.UserAccountDataStructOutput],
       'view'
     >
     
@@ -357,10 +473,42 @@ decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
     
 
     
+    owner: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    priceOracle: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     principalBorrowed: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
       'view'
+    >
+    
+
+    
+    protocolFees: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    renounceOwnership: TypedContractMethod<
+      [],
+      [void],
+      'nonpayable'
     >
     
 
@@ -373,7 +521,15 @@ decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
     
 
     
-    reserveBalance: TypedContractMethod<
+    reserveBuffer: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    totalDebt: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -389,10 +545,10 @@ decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
     
 
     
-    usdtPriceInEth: TypedContractMethod<
-      [],
-      [bigint],
-      'view'
+    transferOwnership: TypedContractMethod<
+      [newOwner: AddressLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -428,10 +584,23 @@ decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
     >
     
 
+    
+    withdrawProtocolFees: TypedContractMethod<
+      [amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'BORROW_RATE_PER_SEC'): TypedContractMethod<
+    getFunction(nameOrSignature: 'BASE_RATE_APY'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'BUFFER_TARGET_PERCENT'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -451,7 +620,37 @@ getFunction(nameOrSignature: 'LTV'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'MIN_BUFFER'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'OPTIMAL_UTILIZATION'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'ORACLE_HEARTBEAT'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'RESERVE_FACTOR'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'SECONDS_PER_YEAR'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'SLOPE_1_APY'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'SLOPE_2_APY'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -481,6 +680,11 @@ getFunction(nameOrSignature: 'getAccruedInterest'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'getBorrowRatePerSec'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getCollateralETHValue'): TypedContractMethod<
       [usdtAmount: BigNumberish, ],
       [bigint],
@@ -498,7 +702,7 @@ getFunction(nameOrSignature: 'getTotalDebt'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'getUserAccountData'): TypedContractMethod<
       [user: AddressLike, ],
-      [LendingPool.UserAccountDataStructOutput],
+      [DataTypes.UserAccountDataStructOutput],
       'view'
     >;
 getFunction(nameOrSignature: 'getWithdrawableCollateral'): TypedContractMethod<
@@ -531,17 +735,42 @@ getFunction(nameOrSignature: 'liquidityIndex'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'owner'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'priceOracle'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'principalBorrowed'): TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
       'view'
+    >;
+getFunction(nameOrSignature: 'protocolFees'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'renounceOwnership'): TypedContractMethod<
+      [],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'repayETH'): TypedContractMethod<
       [],
       [void],
       'payable'
     >;
-getFunction(nameOrSignature: 'reserveBalance'): TypedContractMethod<
+getFunction(nameOrSignature: 'reserveBuffer'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'totalDebt'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -551,10 +780,10 @@ getFunction(nameOrSignature: 'totalEthDeposited'): TypedContractMethod<
       [bigint],
       'view'
     >;
-getFunction(nameOrSignature: 'usdtPriceInEth'): TypedContractMethod<
-      [],
-      [bigint],
-      'view'
+getFunction(nameOrSignature: 'transferOwnership'): TypedContractMethod<
+      [newOwner: AddressLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'userCollateral'): TypedContractMethod<
       [arg0: AddressLike, ],
@@ -576,12 +805,19 @@ getFunction(nameOrSignature: 'withdrawETH'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'withdrawProtocolFees'): TypedContractMethod<
+      [amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 
     getEvent(key: 'Borrow'): TypedContractEvent<BorrowEvent.InputTuple, BorrowEvent.OutputTuple, BorrowEvent.OutputObject>;
 getEvent(key: 'CollateralDeposited'): TypedContractEvent<CollateralDepositedEvent.InputTuple, CollateralDepositedEvent.OutputTuple, CollateralDepositedEvent.OutputObject>;
 getEvent(key: 'CollateralWithdrawn'): TypedContractEvent<CollateralWithdrawnEvent.InputTuple, CollateralWithdrawnEvent.OutputTuple, CollateralWithdrawnEvent.OutputObject>;
 getEvent(key: 'Deposit'): TypedContractEvent<DepositEvent.InputTuple, DepositEvent.OutputTuple, DepositEvent.OutputObject>;
 getEvent(key: 'Liquidated'): TypedContractEvent<LiquidatedEvent.InputTuple, LiquidatedEvent.OutputTuple, LiquidatedEvent.OutputObject>;
+getEvent(key: 'OwnershipTransferred'): TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
+getEvent(key: 'ProtocolFeesWithdrawn'): TypedContractEvent<ProtocolFeesWithdrawnEvent.InputTuple, ProtocolFeesWithdrawnEvent.OutputTuple, ProtocolFeesWithdrawnEvent.OutputObject>;
 getEvent(key: 'Repay'): TypedContractEvent<RepayEvent.InputTuple, RepayEvent.OutputTuple, RepayEvent.OutputObject>;
 getEvent(key: 'Withdraw'): TypedContractEvent<WithdrawEvent.InputTuple, WithdrawEvent.OutputTuple, WithdrawEvent.OutputObject>;
 
@@ -605,6 +841,14 @@ getEvent(key: 'Withdraw'): TypedContractEvent<WithdrawEvent.InputTuple, Withdraw
 
       'Liquidated(address,address,uint256,uint256)': TypedContractEvent<LiquidatedEvent.InputTuple, LiquidatedEvent.OutputTuple, LiquidatedEvent.OutputObject>;
       Liquidated: TypedContractEvent<LiquidatedEvent.InputTuple, LiquidatedEvent.OutputTuple, LiquidatedEvent.OutputObject>;
+    
+
+      'OwnershipTransferred(address,address)': TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
+      OwnershipTransferred: TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
+    
+
+      'ProtocolFeesWithdrawn(address,uint256)': TypedContractEvent<ProtocolFeesWithdrawnEvent.InputTuple, ProtocolFeesWithdrawnEvent.OutputTuple, ProtocolFeesWithdrawnEvent.OutputObject>;
+      ProtocolFeesWithdrawn: TypedContractEvent<ProtocolFeesWithdrawnEvent.InputTuple, ProtocolFeesWithdrawnEvent.OutputTuple, ProtocolFeesWithdrawnEvent.OutputObject>;
     
 
       'Repay(address,uint256)': TypedContractEvent<RepayEvent.InputTuple, RepayEvent.OutputTuple, RepayEvent.OutputObject>;
