@@ -50,6 +50,10 @@ const translations = {
     confirm: "Confirm",
     refreshError: "Unable to refresh on-chain position.",
     transactionPending: "Transaction pending...",
+    mint: "Mint 100k mUSDT",
+    minting: "Minting...",
+    mintSuccess: "Successfully minted 100,000 mUSDT!",
+    mintFailed: "Mint failed",
   },
   vi: {
     asset: "TÀI SẢN",
@@ -96,11 +100,16 @@ const translations = {
     confirm: "Xác nhận",
     refreshError: "Không thể cập nhật trạng thái on-chain.",
     transactionPending: "Giao dịch đang chờ...",
+    mint: "Nhận 100k mUSDT",
+    minting: "Đang xử lý...",
+    mintSuccess: "Đã nhận thành công 100.000 mUSDT!",
+    mintFailed: "Đúc token thất bại",
   },
 };
 
 const LENDING_POOL_ADDRESS = import.meta.env.VITE_LENDING_POOL_ADDRESS;
 const MOCK_USDT_ADDRESS = import.meta.env.VITE_MOCK_USDT_ADDRESS;
+const USDT_DECIMALS = 18;
 const SEPOLIA_RPC_URL = import.meta.env.VITE_SEPOLIA_RPC_URL
   || "https://ethereum-sepolia-rpc.publicnode.com";
 const POOL_ABI = [
@@ -178,7 +187,9 @@ export default function App() {
   const [borrowAmount, setBorrowAmount] = useState("");
   const [repayAmount, setRepayAmount] = useState("");
   const [loading, setLoading] = useState(false);
+  const [minting, setMinting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const t = (key) => translations[language][key] || translations.en[key] || key;
 
   const getProvider = () => new ethers.BrowserProvider(window.ethereum);
@@ -287,6 +298,30 @@ export default function App() {
     return () => clearTimeout(timeout);
   }, [error]);
 
+  useEffect(() => {
+    if (!success) return undefined;
+    const timeout = setTimeout(() => setSuccess(""), 5000);
+    return () => clearTimeout(timeout);
+  }, [success]);
+
+  const handleMint = async () => {
+    if (!account || minting) return;
+    setMinting(true);
+    setError("");
+    try {
+      const provider = getProvider();
+      const signer = await provider.getSigner();
+      const token = new ethers.Contract(MOCK_USDT_ADDRESS, MockUSDTABI.abi, signer);
+      await (await token.mint(account, ethers.parseUnits("100000", USDT_DECIMALS))).wait();
+      await fetchData(account, provider);
+      setSuccess(t("mintSuccess"));
+    } catch (err) {
+      setError(`${t("mintFailed")}: ${getErrorMessage(err)}`);
+    } finally {
+      setMinting(false);
+    }
+  };
+
   const runTransaction = async (action, message, clear) => {
     setLoading(true);
     setError("");
@@ -388,6 +423,14 @@ export default function App() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark">P</span><span>PeerPool Lending</span></div>
+        {account && (
+          <div className="header-faucet">
+            <button className="faucet-button" onClick={handleMint} disabled={minting || loading}>
+              {minting ? <span className="spinner" aria-hidden="true" /> : <span className="faucet-icon" aria-hidden="true">✦</span>}
+              {minting ? t("minting") : t("mint")}
+            </button>
+          </div>
+        )}
         {account ? (
           <div className="wallet-widget">
             <div className="balance-pill">
@@ -417,12 +460,12 @@ export default function App() {
         </section>
       )}
 
-      {error && (
+      {(error || success) && (
         <div className="toast-container">
-          <div className="error-toast" role="alert">
-            <span className="toast-icon" aria-hidden="true">!</span>
-            <span>{error === "Unable to refresh on-chain position." ? t("refreshError") : error}</span>
-            <button className="toast-close" onClick={() => setError("")} aria-label="Close notification">×</button>
+          <div className={success ? "success-toast" : "error-toast"} role="alert">
+            <span className={success ? "toast-icon success-icon" : "toast-icon"} aria-hidden="true">{success ? "✓" : "!"}</span>
+            <span>{success || (error === "Unable to refresh on-chain position." ? t("refreshError") : error)}</span>
+            <button className="toast-close" onClick={() => { setError(""); setSuccess(""); }} aria-label="Close notification">×</button>
           </div>
         </div>
       )}
