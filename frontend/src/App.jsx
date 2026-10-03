@@ -54,6 +54,16 @@ const translations = {
     minting: "Minting...",
     mintSuccess: "Successfully minted 100,000 mUSDT!",
     mintFailed: "Mint failed",
+    adminOnly: "Only the admin wallet is authorized to use the faucet.",
+    installWallet: "Please install MetaMask to connect your wallet.",
+    walletRejected: "Wallet request was rejected.",
+    transactionFailed: "Transaction failed",
+    depositFailed: "Deposit failed",
+    withdrawFailed: "Withdraw failed",
+    depositCollateralFailed: "Deposit collateral failed",
+    withdrawCollateralFailed: "Withdraw collateral failed",
+    borrowFailed: "Borrow failed",
+    repayFailed: "Repay failed",
   },
   vi: {
     asset: "TÀI SẢN",
@@ -62,7 +72,7 @@ const translations = {
     borrowApy: "Lãi suất Vay (APY)",
     poolUtilization: "TỶ LỆ SỬ DỤNG HỒ",
     yourLending: "KHOẢN GỬI CỦA BẠN",
-    depositedShare: "Tỷ lệ Đã gửi",
+    depositedShare: "Số dư đã gửi",
     projectedYearlyEarnings: "Lợi nhuận Dự kiến / Năm",
     yourCollateral: "TÀI SẢN THẾ CHẤP",
     stakedCollateral: "Tài sản đã thế chấp",
@@ -75,18 +85,18 @@ const translations = {
     healthFactor: "Chỉ số An toàn (HF)",
     lendSupply: "Gửi Tiền / Cung Cấp",
     borrowCollateral: "Vay / Thế Chấp",
-    availableToSupply: "Khả dụng để gửi",
+    availableToSupply: "Số dư ETH khả dụng",
     suppliedBalance: "Số dư đã gửi",
     supply: "Gửi Tiền",
     withdraw: "Rút Tiền",
-    supplyEth: "Nạp ETH vào Hồ",
+    supplyEth: "Cung cấp ETH vào Hồ thanh khoản",
     withdrawEth: "Rút ETH khỏi Hồ",
     amountToSupply: "Số lượng muốn gửi",
     amountToWithdraw: "Số lượng muốn rút",
-    musdtCollateral: "Thế chấp mUSDT",
+    musdtCollateral: "Tài sản thế chấp (mUSDT)",
     ethBorrowing: "Vay ETH",
-    depositCollateral: "Nạp Thế Chấp",
-    withdrawCollateral: "Rút Thế Chấp",
+    depositCollateral: "Nạp thế chấp",
+    withdrawCollateral: "Rút thế chấp",
     borrowEth: "Vay ETH",
     repayEth: "Trả Nợ ETH",
     amountToDeposit: "Số lượng muốn nạp",
@@ -104,11 +114,22 @@ const translations = {
     minting: "Đang xử lý...",
     mintSuccess: "Đã nhận thành công 100.000 mUSDT!",
     mintFailed: "Đúc token thất bại",
+    adminOnly: "Chỉ ví quản trị mới được phép sử dụng vòi nhận token.",
+    installWallet: "Vui lòng cài đặt MetaMask để kết nối ví.",
+    walletRejected: "Yêu cầu từ ví đã bị từ chối.",
+    transactionFailed: "Giao dịch thất bại",
+    depositFailed: "Gửi tiền thất bại",
+    withdrawFailed: "Rút tiền thất bại",
+    depositCollateralFailed: "Nạp tài sản thế chấp thất bại",
+    withdrawCollateralFailed: "Rút tài sản thế chấp thất bại",
+    borrowFailed: "Vay thất bại",
+    repayFailed: "Trả nợ thất bại",
   },
 };
 
 const LENDING_POOL_ADDRESS = import.meta.env.VITE_LENDING_POOL_ADDRESS;
 const MOCK_USDT_ADDRESS = import.meta.env.VITE_MOCK_USDT_ADDRESS;
+const ADMIN_ADDRESS = "0xe690de630DC52aBB2D70d82e362c32e7bcb13fEF".toLowerCase();
 const USDT_DECIMALS = 18;
 const SEPOLIA_RPC_URL = import.meta.env.VITE_SEPOLIA_RPC_URL
   || "https://ethereum-sepolia-rpc.publicnode.com";
@@ -118,12 +139,12 @@ const POOL_ABI = [
   "function totalDebt() view returns (uint256)",
 ];
 
-function formatAmount(value, decimals = 4) {
+function formatAmount(value, decimals = 4, language = "en") {
   if (value === null || value === undefined || Number(value) === 0) return "0.00";
   const number = Number(value);
   if (!Number.isFinite(number)) return "0.00";
   const fractionDigits = Math.min(decimals, Math.max(2, number >= 1 ? 2 : decimals));
-  return number.toLocaleString(undefined, {
+  return number.toLocaleString(language === "vi" ? "vi-VN" : "en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: fractionDigits,
   });
@@ -191,6 +212,34 @@ export default function App() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const t = (key) => translations[language][key] || translations.en[key] || key;
+  const format = (value, decimals = 4) => formatAmount(value, decimals, language);
+  const isAdmin = account?.toLowerCase() === ADMIN_ADDRESS;
+  const localizedError = (message) => {
+    if (!message) return "";
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes("user rejected") || lowerMessage.includes("action rejected")) {
+      return t("walletRejected");
+    }
+    if (message === "Please install MetaMask to connect your wallet.") return t("installWallet");
+    if (message === "Unable to refresh on-chain position.") return t("refreshError");
+
+    const operationKeys = [
+      ["Deposit collateral failed", "depositCollateralFailed"],
+      ["Withdraw collateral failed", "withdrawCollateralFailed"],
+      ["Deposit failed", "depositFailed"],
+      ["Withdraw failed", "withdrawFailed"],
+      ["Borrow failed", "borrowFailed"],
+      ["Repay failed", "repayFailed"],
+      ["Mint failed", "mintFailed"],
+    ];
+    const operation = operationKeys.find(([prefix]) => message.startsWith(`${prefix}:`) || message === prefix);
+    if (operation) {
+      const detail = message.slice(operation[0].length).replace(/^:\s*/, "");
+      return detail ? `${t(operation[1])}: ${detail}` : t(operation[1]);
+    }
+    if (message === "Transaction failed") return t("transactionFailed");
+    return message;
+  };
 
   const getProvider = () => new ethers.BrowserProvider(window.ethereum);
   const getReadProvider = () => {
@@ -305,7 +354,11 @@ export default function App() {
   }, [success]);
 
   const handleMint = async () => {
-    if (!account || minting) return;
+    if (!isAdmin) {
+      setError(t("adminOnly"));
+      return;
+    }
+    if (minting) return;
     setMinting(true);
     setError("");
     try {
@@ -423,7 +476,7 @@ export default function App() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark">P</span><span>PeerPool Lending</span></div>
-        {account && (
+        {account && isAdmin && (
           <div className="header-faucet">
             <button className="faucet-button" onClick={handleMint} disabled={minting || loading}>
               {minting ? <span className="spinner" aria-hidden="true" /> : <span className="faucet-icon" aria-hidden="true">✦</span>}
@@ -434,7 +487,7 @@ export default function App() {
         {account ? (
           <div className="wallet-widget">
             <div className="balance-pill">
-              {formatAmount(ethBalance)} ETH <span>|</span> {formatAmount(usdtBalance)} mUSDT
+              {format(ethBalance)} ETH <span>|</span> {format(usdtBalance)} mUSDT
             </div>
             <button className="wallet-badge" onClick={() => fetchData(account)} title="Refresh wallet data">
               <span className="active-dot" />
@@ -464,7 +517,7 @@ export default function App() {
         <div className="toast-container">
           <div className={success ? "success-toast" : "error-toast"} role="alert">
             <span className={success ? "toast-icon success-icon" : "toast-icon"} aria-hidden="true">{success ? "✓" : "!"}</span>
-            <span>{success || (error === "Unable to refresh on-chain position." ? t("refreshError") : error)}</span>
+            <span>{success || localizedError(error)}</span>
             <button className="toast-close" onClick={() => { setError(""); setSuccess(""); }} aria-label="Close notification">×</button>
           </div>
         </div>
@@ -494,7 +547,7 @@ export default function App() {
         <article className="protocol-card">
           <span className="eyebrow">{t("poolUtilization")}</span>
           <div className={`utilization-value ${utilizationClass}`}>
-            {utilization.toFixed(2)}% <span>/ {formatAmount(totalAssets)} ETH</span>
+            {utilization.toFixed(2)}% <span>/ {format(totalAssets)} ETH</span>
           </div>
           <div className="utilization-track" aria-label={`${utilization.toFixed(2)}% pool utilization`}>
             <div className={`utilization-fill ${utilizationClass}`} style={{ width: `${utilization}%` }} />
@@ -507,15 +560,15 @@ export default function App() {
           {hasLenderPosition && (
             <article className="position-card">
               <span className="eyebrow">{t("yourLending")}</span>
-              <div className="position-metric"><span>{t("depositedShare")}</span><strong>{formatAmount(lenderSupplied)} ETH</strong></div>
-              <div className="position-metric"><span>{t("projectedYearlyEarnings")}</span><strong>{estimatedYield.toFixed(4)} ETH / year</strong></div>
+              <div className="position-metric"><span>{t("depositedShare")}</span><strong>{format(lenderSupplied)} ETH</strong></div>
+              <div className="position-metric"><span>{t("projectedYearlyEarnings")}</span><strong>{estimatedYield.toFixed(4)} ETH / {language === "vi" ? "năm" : "year"}</strong></div>
             </article>
           )}
           {hasCollateralPosition && (
             <article className="position-card">
               <span className="eyebrow">{t("yourCollateral")}</span>
-              <div className="position-metric"><span>{t("stakedCollateral")}</span><strong>{formatAmount(userCollateral)} mUSDT</strong></div>
-              <div className="position-metric"><span>{t("borrowCapacity")}</span><strong>{formatAmount(maxBorrowETH)} ETH</strong></div>
+              <div className="position-metric"><span>{t("stakedCollateral")}</span><strong>{format(userCollateral)} mUSDT</strong></div>
+              <div className="position-metric"><span>{t("borrowCapacity")}</span><strong>{format(maxBorrowETH)} ETH</strong></div>
             </article>
           )}
           {hasBorrowPosition && (
@@ -523,13 +576,13 @@ export default function App() {
               <span className="eyebrow">{t("yourActiveDebt")}</span>
               <div className="position-metric">
                 <span>{t("borrowedDebt")}</span>
-                <strong>{showDebtInWei ? ethers.formatUnits(liveDebtWei, 0) : formatAmount(liveDebt)} {showDebtInWei ? "Wei" : "ETH"}</strong>
+                <strong>{showDebtInWei ? ethers.formatUnits(liveDebtWei, 0) : format(liveDebt)} {showDebtInWei ? "Wei" : "ETH"}</strong>
                 <button className="text-button" onClick={() => setShowDebtInWei((visible) => !visible)}>
                   {showDebtInWei ? t("viewInEth") : t("viewInWei")}
                 </button>
               </div>
-              <div className="position-metric"><span>{t("projectedYearlyInterest")}</span><strong>{(Number(liveDebt) * (borrowApy / 100)).toFixed(4)} ETH / year</strong></div>
-              <div className="position-metric position-health"><span>{t("healthFactor")}</span><span className={`health-badge ${healthClass}`}>{healthFactor === "∞" ? "∞" : formatAmount(healthFactor)}</span></div>
+              <div className="position-metric"><span>{t("projectedYearlyInterest")}</span><strong>{(Number(liveDebt) * (borrowApy / 100)).toFixed(4)} ETH / {language === "vi" ? "năm" : "year"}</strong></div>
+              <div className="position-metric position-health"><span>{t("healthFactor")}</span><span className={`health-badge ${healthClass}`}>{healthFactor === "∞" ? "∞" : format(healthFactor)}</span></div>
             </article>
           )}
         </section>
@@ -545,11 +598,11 @@ export default function App() {
           <div className="action-view">
             <div className="supply-list">
               <div className="supply-row">
-                <div><span>{t("availableToSupply")}</span><strong>{formatAmount(ethBalance)} ETH</strong></div>
+                <div><span>{t("availableToSupply")}</span><strong>{format(ethBalance)} ETH</strong></div>
                 <button className="secondary-button action-row-button" onClick={() => setLendAction(lendAction === "supply" ? "" : "supply")} disabled={busy || Number(ethBalance) <= 0}>{t("supply")}</button>
               </div>
               <div className="supply-row">
-                <div><span>{t("suppliedBalance")}</span><strong>{formatAmount(lenderSupplied)} ETH</strong></div>
+                <div><span>{t("suppliedBalance")}</span><strong>{format(lenderSupplied)} ETH</strong></div>
                 {hasLenderPosition && <button className="secondary-button action-row-button" onClick={() => setLendAction(lendAction === "withdraw" ? "" : "withdraw")} disabled={busy}>{t("withdraw")}</button>}
               </div>
             </div>
@@ -578,8 +631,8 @@ export default function App() {
               <div className="borrow-action-row">
                 <div className="borrow-metrics">
                   <strong>{t("musdtCollateral")}</strong>
-                  <span>{t("available")}: {formatAmount(usdtBalance)} mUSDT</span>
-                  <span>{t("staked")}: {formatAmount(userCollateral)} mUSDT</span>
+                  <span>{t("available")}: {format(usdtBalance)} mUSDT</span>
+                  <span>{t("staked")}: {format(userCollateral)} mUSDT</span>
                 </div>
                 <div className="borrow-row-buttons">
                   <button className="secondary-button" onClick={() => setBorrowAction(borrowAction === "depositCollateral" ? "" : "depositCollateral")} disabled={busy}>{t("depositCollateral")}</button>
@@ -589,8 +642,8 @@ export default function App() {
               <div className="borrow-action-row">
                 <div className="borrow-metrics">
                   <strong>{t("ethBorrowing")}</strong>
-                  <span>{t("maxBorrowAllowed")}: {formatAmount(maxBorrowETH)} ETH</span>
-                  <span>{t("currentDebt")}: {formatAmount(liveDebt)} ETH</span>
+                  <span>{t("maxBorrowAllowed")}: {format(maxBorrowETH)} ETH</span>
+                  <span>{t("currentDebt")}: {format(liveDebt)} ETH</span>
                 </div>
                 <div className="borrow-row-buttons">
                   <button className="secondary-button" onClick={() => setBorrowAction(borrowAction === "borrow" ? "" : "borrow")} disabled={busy || Number(maxBorrowETH) <= 0}>{t("borrowEth")}</button>
@@ -628,10 +681,10 @@ export default function App() {
                   unit={borrowAction.includes("Collateral") ? "mUSDT" : "ETH"}
                 />
                 <div className="helper-text">
-                  {borrowAction === "withdrawCollateral" && `${t("safeMaxWithdrawable")}: ${formatAmount(withdrawableCollateral)} mUSDT`}
-                  {borrowAction === "borrow" && `${t("maxBorrowAllowed")}: ${formatAmount(maxBorrowETH)} ETH`}
-                  {borrowAction === "repay" && `${t("currentDebt")}: ${formatAmount(liveDebt)} ETH`}
-                  {borrowAction === "depositCollateral" && `${t("available")}: ${formatAmount(usdtBalance)} mUSDT`}
+                  {borrowAction === "withdrawCollateral" && `${t("safeMaxWithdrawable")}: ${format(withdrawableCollateral)} mUSDT`}
+                  {borrowAction === "borrow" && `${t("maxBorrowAllowed")}: ${format(maxBorrowETH)} ETH`}
+                  {borrowAction === "repay" && `${t("currentDebt")}: ${format(liveDebt)} ETH`}
+                  {borrowAction === "depositCollateral" && `${t("available")}: ${format(usdtBalance)} mUSDT`}
                 </div>
                 <button
                   className="primary-button full"
