@@ -1,8 +1,9 @@
 import { network } from "hardhat";
 
-const { ethers } = await network.create();
-
 async function main() {
+
+  const { ethers } = await network.create();
+
   const [deployer] = await ethers.getSigners();
 
   console.log("--------------------------------------------------");

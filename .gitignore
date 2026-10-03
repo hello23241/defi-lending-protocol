@@ -1,8 +1,31 @@
 node_modules/
 frontend/node_modules/
+
+# Hardhat build output
 artifacts/
 cache/
+
+# Frontend build output and local Vite files
 frontend/dist/
+frontend/dist-ssr/
+*.local
+
+# Test and coverage output
+coverage/
+.nyc_output/
+
+# Local secrets and environment configuration
 .env
+.env.*
+!.env.example
 frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Logs and OS metadata
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 .DS_Store

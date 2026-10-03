@@ -4,5 +4,5 @@
 export type { LendingPool } from './LendingPool.js';
 export type { MockUSDT } from './MockUSDT.js';
 export * as factories from './factories/index.js';
-export { MockUSDT__factory } from './factories/MockUSDT__factory.js';
 export { LendingPool__factory } from './factories/LendingPool__factory.js';
+export { MockUSDT__factory } from './factories/MockUSDT__factory.js';
