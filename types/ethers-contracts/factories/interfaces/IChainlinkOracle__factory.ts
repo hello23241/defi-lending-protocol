@@ -3,7 +3,7 @@
 /* eslint-disable */
 
   import { Contract, Interface, type ContractRunner } from "ethers";
-  import type { AggregatorV3Interface, AggregatorV3InterfaceInterface } from "../../../interfaces/IChainlinkOracle.sol/AggregatorV3Interface.js";
+  import type { IChainlinkOracle, IChainlinkOracleInterface } from "../../interfaces/IChainlinkOracle.js";
 
   const _abi = [
   {
@@ -119,13 +119,13 @@
   }
 ] as const;
 
-  export class AggregatorV3Interface__factory {
+  export class IChainlinkOracle__factory {
     static readonly abi = _abi;
-    static createInterface(): AggregatorV3InterfaceInterface {
-      return new Interface(_abi) as AggregatorV3InterfaceInterface;
+    static createInterface(): IChainlinkOracleInterface {
+      return new Interface(_abi) as IChainlinkOracleInterface;
     }
-    static connect(address: string, runner?: ContractRunner | null): AggregatorV3Interface {
-      return new Contract(address, _abi, runner) as unknown as AggregatorV3Interface;
+    static connect(address: string, runner?: ContractRunner | null): IChainlinkOracle {
+      return new Contract(address, _abi, runner) as unknown as IChainlinkOracle;
     }
   }
   

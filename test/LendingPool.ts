@@ -5,27 +5,78 @@ const { ethers, networkHelpers } = await network.create();
 
 async function deployLendingPoolFixture() {
   const [deployer, lender, borrower] = await ethers.getSigners();
-  const token = await ethers.deployContract("MockUSDT");
-  const oracle = await ethers.deployContract("MockChainlinkOracle", [2655_00000000n]);
+  const feed = await ethers.deployContract("TestChainlinkFeed", [2655_00000000n]);
+  const oracle = await ethers.deployContract("ChainlinkOracle", [await feed.getAddress()]);
+  const token = await ethers.deployContract("MockUSDT", [await oracle.getAddress()]);
   const pool = await ethers.deployContract("LendingPool", [
     await token.getAddress(),
     await oracle.getAddress(),
   ]);
+  await token.setLendingPool(await pool.getAddress());
 
   return { deployer, lender, borrower, token, oracle, pool };
 }
 
 describe("LendingPool", function () {
-  it("wires the collateral token and mints the initial test supply", async function () {
+  it("wires the collateral token and starts with no unbacked supply", async function () {
     const { deployer, token, pool } = await networkHelpers.loadFixture(
       deployLendingPoolFixture,
     );
-    const initialSupply = 1_000_000n * 10n ** 18n;
-
     expect(await pool.collateralToken()).to.equal(await token.getAddress());
-    expect(await token.balanceOf(deployer.address)).to.equal(initialSupply);
-    expect(await token.totalSupply()).to.equal(initialSupply);
+    expect(await token.balanceOf(deployer.address)).to.equal(0n);
+    expect(await token.totalSupply()).to.equal(0n);
     expect(await pool.lastGlobalUpdateTimestamp()).to.be.greaterThan(0n);
+  });
+
+  it("supports paid and owner-only free minting plus oracle overrides", async function () {
+    const { deployer, borrower, token, oracle } = await networkHelpers.loadFixture(
+      deployLendingPoolFixture,
+    );
+
+    const amount = ethers.parseUnits("2500", 18);
+    await token.connect(borrower).mint(amount, { value: await token.quoteMint(amount) });
+    expect(await token.balanceOf(borrower.address)).to.equal(amount);
+    const freeAmount = ethers.parseUnits("100000", 18);
+    await token.mintFree(deployer.address, freeAmount);
+    expect(await token.balanceOf(deployer.address)).to.equal(freeAmount);
+    await expect(token.connect(borrower).mintFree(borrower.address, freeAmount))
+      .to.be.revertedWithCustomError(token, "OwnableUnauthorizedAccount")
+      .withArgs(borrower.address);
+    await expect(oracle.connect(borrower).setTemporaryPrice(2_000_00000000n))
+      .to.be.revertedWithCustomError(oracle, "OwnableUnauthorizedAccount")
+      .withArgs(borrower.address);
+    expect(await oracle.TEMPORARY_OVERRIDE_DURATION()).to.equal(120n);
+  });
+
+  it("configures the reserve factor within the owner cap", async function () {
+    const { borrower, pool } = await networkHelpers.loadFixture(
+      deployLendingPoolFixture,
+    );
+
+    expect(await pool.reserveFactor()).to.equal(2000n);
+    await expect(pool.setReserveFactor(2500n))
+      .to.emit(pool, "ReserveFactorUpdated")
+      .withArgs(2500n);
+    expect(await pool.reserveFactor()).to.equal(2500n);
+    await expect(pool.setReserveFactor(3501n)).to.be.revertedWith(
+      "Exceeds max reserve factor",
+    );
+    await expect(pool.connect(borrower).setReserveFactor(2000n))
+      .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
+      .withArgs(borrower.address);
+  });
+
+  it("guards reserve buffer withdrawals", async function () {
+    const { borrower, pool } = await networkHelpers.loadFixture(
+      deployLendingPoolFixture,
+    );
+
+    await expect(pool.withdrawReserveBuffer(1n)).to.be.revertedWith(
+      "Exceeds reserve buffer",
+    );
+    await expect(pool.connect(borrower).withdrawReserveBuffer(0n))
+      .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
+      .withArgs(borrower.address);
   });
 
   it("accepts lender ETH deposits and reports the lender balance", async function () {
@@ -49,7 +100,7 @@ describe("LendingPool", function () {
     const borrowAmount = ethers.parseEther("0.1");
 
     await pool.connect(lender).depositETH({ value: liquidity });
-    await token.connect(borrower).mint(borrower.address, collateral);
+    await token.connect(borrower).mint(collateral, { value: await token.quoteMint(collateral) });
     await token.connect(borrower).approve(await pool.getAddress(), collateral);
 
     await expect(pool.connect(borrower).depositCollateral(collateral))
@@ -58,7 +109,7 @@ describe("LendingPool", function () {
 
     const accountData = await pool.getUserAccountData(borrower.address);
     const collateralValue = await pool.getCollateralETHValue(collateral);
-    expect(accountData.maxBorrowETH).to.equal((collateralValue * 70n) / 100n);
+    expect(accountData.maxBorrowETH).to.equal((collateralValue * 80n) / 120n);
 
     await expect(pool.connect(borrower).borrowETH(borrowAmount))
       .to.emit(pool, "Borrow")
@@ -74,6 +125,37 @@ describe("LendingPool", function () {
     expect(await pool.getTotalDebt(borrower.address)).to.equal(0n);
   });
 
+  it("transfers liquidation collateral and bonus to the liquidator", async function () {
+    const { deployer, lender, borrower, token, oracle, pool } =
+      await networkHelpers.loadFixture(deployLendingPoolFixture);
+    const collateral = ethers.parseUnits("2000", 18);
+    const debt = ethers.parseEther("0.35");
+
+    await pool.connect(lender).depositETH({ value: ethers.parseEther("1") });
+    await token.connect(borrower).mint(collateral, { value: await token.quoteMint(collateral) });
+    await token.connect(borrower).approve(await pool.getAddress(), collateral);
+    await pool.connect(borrower).depositCollateral(collateral);
+    await pool.connect(borrower).borrowETH(debt);
+    await oracle.setTemporaryPrice(5_000_00000000n);
+
+    const accountData = await pool.getUserAccountData(borrower.address);
+    expect(accountData.healthFactor).to.be.lessThan(ethers.parseEther("1"));
+
+    const debtToCover = await pool.getTotalDebt(borrower.address);
+    const liquidatorBefore = await token.balanceOf(deployer.address);
+
+    const liquidationLimit = debtToCover + ethers.parseEther("0.001");
+    await expect(pool.connect(deployer).liquidate(borrower.address, liquidationLimit, { value: liquidationLimit }))
+      .to.emit(pool, "Liquidated");
+
+    const liquidatorAfter = await token.balanceOf(deployer.address);
+    const seized = liquidatorAfter - liquidatorBefore;
+    expect(seized).to.be.greaterThan(0n);
+    expect(seized).to.be.lessThanOrEqual(collateral);
+    expect(await pool.userCollateral(borrower.address)).to.equal(collateral - seized);
+    expect(await pool.getTotalDebt(borrower.address)).to.equal(0n);
+  });
+
   it("normalizes the Chainlink price and exposes a kinked borrow rate", async function () {
     const { lender, token, borrower, pool } = await networkHelpers.loadFixture(
       deployLendingPoolFixture,
@@ -86,7 +168,7 @@ describe("LendingPool", function () {
       ethers.parseEther("1"),
     );
 
-    await token.connect(borrower).mint(borrower.address, collateral);
+    await token.connect(borrower).mint(collateral, { value: await token.quoteMint(collateral) });
     await token.connect(borrower).approve(await pool.getAddress(), collateral);
     await pool.connect(borrower).depositCollateral(collateral);
     await pool.connect(borrower).borrowETH(ethers.parseEther("0.7"));
@@ -114,7 +196,7 @@ describe("LendingPool", function () {
     );
     const collateral = ethers.parseUnits("1000", 18);
     await pool.connect(lender).depositETH({ value: ethers.parseEther("1") });
-    await token.connect(borrower).mint(borrower.address, collateral);
+    await token.connect(borrower).mint(collateral, { value: await token.quoteMint(collateral) });
     await token.connect(borrower).approve(await pool.getAddress(), collateral);
     await pool.connect(borrower).depositCollateral(collateral);
     await pool.connect(borrower).borrowETH(ethers.parseEther("0.1"));
@@ -127,7 +209,7 @@ describe("LendingPool", function () {
       pool,
       "OwnableUnauthorizedAccount",
     );
-    await expect(pool.withdrawProtocolFees(fees + 1n)).to.be.revertedWith(
+    await expect(pool.withdrawProtocolFees(fees + ethers.parseEther("1000"))).to.be.revertedWith(
       "Exceeds protocol fees",
     );
   });

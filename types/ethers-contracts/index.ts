@@ -3,16 +3,20 @@
 /* eslint-disable */
 import type * as interfaces from './interfaces/index.js';
 export type { interfaces };
+export type { ChainlinkOracle } from './ChainlinkOracle.js';
 export type { InterestRateModel } from './InterestRateModel.js';
 export type { LendingPool } from './LendingPool.js';
 export type { LendingPoolStorage } from './LendingPoolStorage.js';
-export type { MockChainlinkOracle } from './MockChainlinkOracle.js';
 export type { MockUSDT } from './MockUSDT.js';
+export type { TestChainlinkFeed } from './TestChainlinkFeed.js';
 export * as factories from './factories/index.js';
 export { InterestRateModel__factory } from './factories/InterestRateModel__factory.js';
-export { LendingPoolStorage__factory } from './factories/LendingPoolStorage__factory.js';
 export { LendingPool__factory } from './factories/LendingPool__factory.js';
-export { MockChainlinkOracle__factory } from './factories/MockChainlinkOracle__factory.js';
+export { ChainlinkOracle__factory } from './factories/ChainlinkOracle__factory.js';
+export { LendingPoolStorage__factory } from './factories/LendingPoolStorage__factory.js';
 export { MockUSDT__factory } from './factories/MockUSDT__factory.js';
-export type { AggregatorV3Interface } from './interfaces/IChainlinkOracle.sol/AggregatorV3Interface.js';
-export { AggregatorV3Interface__factory } from './factories/interfaces/IChainlinkOracle.sol/AggregatorV3Interface__factory.js';
+export { TestChainlinkFeed__factory } from './factories/TestChainlinkFeed__factory.js';
+export type { ILiquidationBurnable } from './interfaces/ILiquidationBurnable.js';
+export { ILiquidationBurnable__factory } from './factories/interfaces/ILiquidationBurnable__factory.js';
+export type { IChainlinkOracle } from './interfaces/IChainlinkOracle.js';
+export { IChainlinkOracle__factory } from './factories/interfaces/IChainlinkOracle__factory.js';

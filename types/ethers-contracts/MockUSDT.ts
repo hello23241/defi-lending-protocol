@@ -6,31 +6,51 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface MockUSDTInterface extends Interface {
-    getFunction(nameOrSignature: "allowance" | "approve" | "balanceOf" | "decimals" | "mint" | "name" | "symbol" | "totalSupply" | "transfer" | "transferFrom"): FunctionFragment;
+    getFunction(nameOrSignature: "ORACLE_HEARTBEAT" | "allowance" | "approve" | "balanceOf" | "burnForLiquidation" | "decimals" | "lendingPool" | "mint" | "mintFree" | "name" | "owner" | "priceOracle" | "quoteMint" | "renounceOwnership" | "setLendingPool" | "symbol" | "totalSupply" | "transfer" | "transferFrom" | "transferOwnership"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "Approval" | "Transfer"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "Approval" | "LiquidationBurn" | "OwnershipTransferred" | "PublicMint" | "Transfer"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'allowance', values: [AddressLike, AddressLike]): string;
+    encodeFunctionData(functionFragment: 'ORACLE_HEARTBEAT', values?: undefined): string;
+encodeFunctionData(functionFragment: 'allowance', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'approve', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'burnForLiquidation', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'decimals', values?: undefined): string;
-encodeFunctionData(functionFragment: 'mint', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'lendingPool', values?: undefined): string;
+encodeFunctionData(functionFragment: 'mint', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'mintFree', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'name', values?: undefined): string;
+encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
+encodeFunctionData(functionFragment: 'priceOracle', values?: undefined): string;
+encodeFunctionData(functionFragment: 'quoteMint', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'renounceOwnership', values?: undefined): string;
+encodeFunctionData(functionFragment: 'setLendingPool', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'symbol', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalSupply', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transfer', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferFrom', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
 
-    decodeFunctionResult(functionFragment: 'allowance', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'ORACLE_HEARTBEAT', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'allowance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnForLiquidation', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'decimals', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'lendingPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mint', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'mintFree', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'name', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'priceOracle', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'quoteMint', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'renounceOwnership', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setLendingPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'symbol', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalSupply', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transfer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
   }
 
   
@@ -38,6 +58,42 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
       export type InputTuple = [owner: AddressLike, spender: AddressLike, value: BigNumberish];
       export type OutputTuple = [owner: string, spender: string, value: bigint];
       export interface OutputObject {owner: string, spender: string, value: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace LiquidationBurnEvent {
+      export type InputTuple = [amount: BigNumberish, poolShare: BigNumberish, treasuryShare: BigNumberish];
+      export type OutputTuple = [amount: bigint, poolShare: bigint, treasuryShare: bigint];
+      export interface OutputObject {amount: bigint, poolShare: bigint, treasuryShare: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace OwnershipTransferredEvent {
+      export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+      export type OutputTuple = [previousOwner: string, newOwner: string];
+      export interface OutputObject {previousOwner: string, newOwner: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace PublicMintEvent {
+      export type InputTuple = [account: AddressLike, ethPaid: BigNumberish, amount: BigNumberish];
+      export type OutputTuple = [account: string, ethPaid: bigint, amount: bigint];
+      export interface OutputObject {account: string, ethPaid: bigint, amount: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -92,6 +148,14 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
 
     
     
+    ORACLE_HEARTBEAT: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     allowance: TypedContractMethod<
       [owner: AddressLike, spender: AddressLike, ],
       [bigint],
@@ -116,6 +180,14 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
     
 
     
+    burnForLiquidation: TypedContractMethod<
+      [amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     decimals: TypedContractMethod<
       [],
       [bigint],
@@ -124,8 +196,24 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
     
 
     
+    lendingPool: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     mint: TypedContractMethod<
-      [to: AddressLike, amount: BigNumberish, ],
+      [amount: BigNumberish, ],
+      [void],
+      'payable'
+    >
+    
+
+    
+    mintFree: TypedContractMethod<
+      [recipient: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -136,6 +224,46 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
       [],
       [string],
       'view'
+    >
+    
+
+    
+    owner: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    priceOracle: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    quoteMint: TypedContractMethod<
+      [amount: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    renounceOwnership: TypedContractMethod<
+      [],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setLendingPool: TypedContractMethod<
+      [pool: AddressLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -171,10 +299,23 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
     >
     
 
+    
+    transferOwnership: TypedContractMethod<
+      [newOwner: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'allowance'): TypedContractMethod<
+    getFunction(nameOrSignature: 'ORACLE_HEARTBEAT'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'allowance'): TypedContractMethod<
       [owner: AddressLike, spender: AddressLike, ],
       [bigint],
       'view'
@@ -189,13 +330,28 @@ getFunction(nameOrSignature: 'balanceOf'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'burnForLiquidation'): TypedContractMethod<
+      [amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'decimals'): TypedContractMethod<
       [],
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'lendingPool'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'mint'): TypedContractMethod<
-      [to: AddressLike, amount: BigNumberish, ],
+      [amount: BigNumberish, ],
+      [void],
+      'payable'
+    >;
+getFunction(nameOrSignature: 'mintFree'): TypedContractMethod<
+      [recipient: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -203,6 +359,31 @@ getFunction(nameOrSignature: 'name'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'owner'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'priceOracle'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'quoteMint'): TypedContractMethod<
+      [amount: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'renounceOwnership'): TypedContractMethod<
+      [],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setLendingPool'): TypedContractMethod<
+      [pool: AddressLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'symbol'): TypedContractMethod<
       [],
@@ -224,14 +405,34 @@ getFunction(nameOrSignature: 'transferFrom'): TypedContractMethod<
       [boolean],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'transferOwnership'): TypedContractMethod<
+      [newOwner: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 
     getEvent(key: 'Approval'): TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
+getEvent(key: 'LiquidationBurn'): TypedContractEvent<LiquidationBurnEvent.InputTuple, LiquidationBurnEvent.OutputTuple, LiquidationBurnEvent.OutputObject>;
+getEvent(key: 'OwnershipTransferred'): TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
+getEvent(key: 'PublicMint'): TypedContractEvent<PublicMintEvent.InputTuple, PublicMintEvent.OutputTuple, PublicMintEvent.OutputObject>;
 getEvent(key: 'Transfer'): TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
 
     filters: {
       
       'Approval(address,address,uint256)': TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
       Approval: TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
+    
+
+      'LiquidationBurn(uint256,uint256,uint256)': TypedContractEvent<LiquidationBurnEvent.InputTuple, LiquidationBurnEvent.OutputTuple, LiquidationBurnEvent.OutputObject>;
+      LiquidationBurn: TypedContractEvent<LiquidationBurnEvent.InputTuple, LiquidationBurnEvent.OutputTuple, LiquidationBurnEvent.OutputObject>;
+    
+
+      'OwnershipTransferred(address,address)': TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
+      OwnershipTransferred: TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
+    
+
+      'PublicMint(address,uint256,uint256)': TypedContractEvent<PublicMintEvent.InputTuple, PublicMintEvent.OutputTuple, PublicMintEvent.OutputObject>;
+      PublicMint: TypedContractEvent<PublicMintEvent.InputTuple, PublicMintEvent.OutputTuple, PublicMintEvent.OutputObject>;
     
 
       'Transfer(address,address,uint256)': TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;

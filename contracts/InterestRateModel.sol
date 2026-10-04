@@ -14,7 +14,7 @@ abstract contract InterestRateModel {
     ) internal pure returns (uint256) {
         if (deposits == 0) return BASE_RATE_APY / SECONDS_PER_YEAR;
 
-        uint256 utilization = (debt * 1e18) / deposits;
+        uint256 utilization = debt >= deposits ? 1e18 : (debt * 1e18) / deposits;
         uint256 annualRate;
         if (utilization <= OPTIMAL_UTILIZATION) {
             annualRate =

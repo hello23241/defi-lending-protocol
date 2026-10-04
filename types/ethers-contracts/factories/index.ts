@@ -2,8 +2,9 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as interfaces from './interfaces/index.js';
+export { ChainlinkOracle__factory } from './ChainlinkOracle__factory.js';
 export { InterestRateModel__factory } from './InterestRateModel__factory.js';
 export { LendingPool__factory } from './LendingPool__factory.js';
 export { LendingPoolStorage__factory } from './LendingPoolStorage__factory.js';
-export { MockChainlinkOracle__factory } from './MockChainlinkOracle__factory.js';
 export { MockUSDT__factory } from './MockUSDT__factory.js';
+export { TestChainlinkFeed__factory } from './TestChainlinkFeed__factory.js';

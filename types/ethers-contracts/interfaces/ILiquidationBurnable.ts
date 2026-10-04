@@ -2,29 +2,27 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, ContractRunner, ContractMethod, Listener } from "ethers"
-import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "./common.js"
+import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../common.js"
   
 
-  export interface MockChainlinkOracleInterface extends Interface {
-    getFunction(nameOrSignature: "latestRoundData" | "setPrice"): FunctionFragment;
+  export interface ILiquidationBurnableInterface extends Interface {
+    getFunction(nameOrSignature: "burnForLiquidation"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'latestRoundData', values?: undefined): string;
-encodeFunctionData(functionFragment: 'setPrice', values: [BigNumberish]): string;
+    encodeFunctionData(functionFragment: 'burnForLiquidation', values: [BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'latestRoundData', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'setPrice', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'burnForLiquidation', data: BytesLike): Result;
   }
 
   
 
-  export interface MockChainlinkOracle extends BaseContract {
+  export interface ILiquidationBurnable extends BaseContract {
     
-    connect(runner?: ContractRunner | null): MockChainlinkOracle;
+    connect(runner?: ContractRunner | null): ILiquidationBurnable;
     waitForDeployment(): Promise<this>;
 
-    interface: MockChainlinkOracleInterface;
+    interface: ILiquidationBurnableInterface;
 
     
   queryFilter<TCEvent extends TypedContractEvent>(
@@ -53,16 +51,8 @@ decodeFunctionResult(functionFragment: 'setPrice', data: BytesLike): Result;
 
     
     
-    latestRoundData: TypedContractMethod<
-      [],
-      [[bigint, bigint, bigint, bigint, bigint]],
-      'view'
-    >
-    
-
-    
-    setPrice: TypedContractMethod<
-      [newPrice: BigNumberish, ],
+    burnForLiquidation: TypedContractMethod<
+      [amount: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -71,13 +61,8 @@ decodeFunctionResult(functionFragment: 'setPrice', data: BytesLike): Result;
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'latestRoundData'): TypedContractMethod<
-      [],
-      [[bigint, bigint, bigint, bigint, bigint]],
-      'view'
-    >;
-getFunction(nameOrSignature: 'setPrice'): TypedContractMethod<
-      [newPrice: BigNumberish, ],
+    getFunction(nameOrSignature: 'burnForLiquidation'): TypedContractMethod<
+      [amount: BigNumberish, ],
       [void],
       'nonpayable'
     >;

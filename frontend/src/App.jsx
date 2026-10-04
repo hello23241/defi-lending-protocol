@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import LendingPoolABI from "./abis/LendingPool.json";
-import MockUSDTABI from "./abis/MockUSDT.json";
 import "./App.css";
 
 const translations = {
@@ -50,11 +49,21 @@ const translations = {
     confirm: "Confirm",
     refreshError: "Unable to refresh on-chain position.",
     transactionPending: "Transaction pending...",
-    mint: "Mint 100k mUSDT",
+    trade: "Trade ETH for mUSDT",
+    adminMint: "Admin mint 100k mUSDT",
+    oracle: "Set oracle price",
+    oraclePrice: "ETH price (USD)",
+    setPrice: "Set price",
+    close: "Close",
+    amountToTrade: "Amount to receive",
+    tradeHint: "The required ETH will be calculated from the oracle price.",
     minting: "Minting...",
-    mintSuccess: "Successfully minted 100,000 mUSDT!",
+    mintSuccess: "Successfully traded ETH for mUSDT!",
+    adminMintSuccess: "Successfully minted 100,000 mUSDT for free!",
+    oracleSuccess: "Oracle price updated for 2 minutes.",
     mintFailed: "Mint failed",
-    adminOnly: "Only the admin wallet is authorized to use the faucet.",
+    adminMintFailed: "Admin mint failed",
+    oracleFailed: "Oracle update failed",
     installWallet: "Please install MetaMask to connect your wallet.",
     walletRejected: "Wallet request was rejected.",
     transactionFailed: "Transaction failed",
@@ -110,11 +119,21 @@ const translations = {
     confirm: "Xác nhận",
     refreshError: "Không thể cập nhật trạng thái on-chain.",
     transactionPending: "Giao dịch đang chờ...",
-    mint: "Nhận 100k mUSDT",
+    trade: "Đổi ETH lấy mUSDT",
+    adminMint: "Đúc miễn phí 100k mUSDT",
+    oracle: "Đặt giá oracle",
+    oraclePrice: "Giá ETH (USD)",
+    setPrice: "Đặt giá",
+    close: "Đóng",
+    amountToTrade: "Số lượng nhận",
+    tradeHint: "Lượng ETH cần trả sẽ được tính theo giá oracle.",
     minting: "Đang xử lý...",
-    mintSuccess: "Đã nhận thành công 100.000 mUSDT!",
+    mintSuccess: "Đã đổi ETH lấy mUSDT thành công!",
+    adminMintSuccess: "Đã đúc miễn phí thành công 100.000 mUSDT!",
+    oracleSuccess: "Đã cập nhật giá oracle trong 2 phút.",
     mintFailed: "Đúc token thất bại",
-    adminOnly: "Chỉ ví quản trị mới được phép sử dụng vòi nhận token.",
+    adminMintFailed: "Đúc miễn phí thất bại",
+    oracleFailed: "Cập nhật oracle thất bại",
     installWallet: "Vui lòng cài đặt MetaMask để kết nối ví.",
     walletRejected: "Yêu cầu từ ví đã bị từ chối.",
     transactionFailed: "Giao dịch thất bại",
@@ -129,14 +148,28 @@ const translations = {
 
 const LENDING_POOL_ADDRESS = import.meta.env.VITE_LENDING_POOL_ADDRESS;
 const MOCK_USDT_ADDRESS = import.meta.env.VITE_MOCK_USDT_ADDRESS;
-const ADMIN_ADDRESS = "0xe690de630DC52aBB2D70d82e362c32e7bcb13fEF".toLowerCase();
+const ORACLE_ADDRESS = import.meta.env.VITE_ORACLE_ADDRESS;
 const USDT_DECIMALS = 18;
 const SEPOLIA_RPC_URL = import.meta.env.VITE_SEPOLIA_RPC_URL
   || "https://ethereum-sepolia-rpc.publicnode.com";
 const POOL_ABI = [
   ...LendingPoolABI.abi,
+  "function priceOracle() view returns (address)",
   "function getBorrowRatePerSec() view returns (uint256)",
   "function totalDebt() view returns (uint256)",
+];
+const MOCK_USDT_ABI = [
+  "function balanceOf(address account) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function mint(uint256 amount) payable",
+  "function mintFree(address recipient, uint256 amount)",
+  "function quoteMint(uint256 amount) view returns (uint256)",
+  "function owner() view returns (address)",
+];
+const ORACLE_ABI = [
+  "function owner() view returns (address)",
+  "function decimals() view returns (uint8)",
+  "function setTemporaryPrice(int256 newPrice)",
 ];
 
 function formatAmount(value, decimals = 4, language = "en") {
@@ -151,7 +184,21 @@ function formatAmount(value, decimals = 4, language = "en") {
 }
 
 function getErrorMessage(error) {
-  return error?.reason || error?.shortMessage || error?.message || "Transaction failed";
+  return error?.reason
+    || error?.shortMessage
+    || error?.info?.error?.message
+    || error?.error?.message
+    || error?.message
+    || "Transaction failed";
+}
+
+async function assertContractDeployment(provider, address, label) {
+  if (!address) throw new Error(`${label} address is not configured.`);
+  const code = await provider.getCode(address);
+  if (code === "0x") {
+    const network = await provider.getNetwork();
+    throw new Error(`${label} was not found on network ${network.chainId.toString()}. Switch MetaMask to the deployment network.`);
+  }
 }
 
 function AmountField({ label, value, onChange, onMax, unit }) {
@@ -209,11 +256,15 @@ export default function App() {
   const [repayAmount, setRepayAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [minting, setMinting] = useState(false);
+  const [tradeAmount, setTradeAmount] = useState("");
+  const [showTradeModal, setShowTradeModal] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showOracleModal, setShowOracleModal] = useState(false);
+  const [oraclePrice, setOraclePrice] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const t = (key) => translations[language][key] || translations.en[key] || key;
   const format = (value, decimals = 4) => formatAmount(value, decimals, language);
-  const isAdmin = account?.toLowerCase() === ADMIN_ADDRESS;
   const localizedError = (message) => {
     if (!message) return "";
     const lowerMessage = message.toLowerCase();
@@ -231,6 +282,8 @@ export default function App() {
       ["Borrow failed", "borrowFailed"],
       ["Repay failed", "repayFailed"],
       ["Mint failed", "mintFailed"],
+      ["Admin mint failed", "adminMintFailed"],
+      ["Oracle update failed", "oracleFailed"],
     ];
     const operation = operationKeys.find(([prefix]) => message.startsWith(`${prefix}:`) || message === prefix);
     if (operation) {
@@ -278,7 +331,9 @@ export default function App() {
 
       if (!userAddress) return;
 
-      const usdtContract = new ethers.Contract(MOCK_USDT_ADDRESS, MockUSDTABI.abi, provider);
+      const usdtContract = new ethers.Contract(MOCK_USDT_ADDRESS, MOCK_USDT_ABI, provider);
+      const tokenOwner = await usdtContract.owner();
+      setIsAdmin(tokenOwner.toLowerCase() === userAddress.toLowerCase());
       const [
         walletEthBalance,
         walletUsdtBalance,
@@ -353,25 +408,70 @@ export default function App() {
     return () => clearTimeout(timeout);
   }, [success]);
 
-  const handleMint = async () => {
-    if (!isAdmin) {
-      setError(t("adminOnly"));
-      return;
-    }
-    if (minting) return;
+  const handleTrade = async () => {
+    if (!account || minting || !tradeAmount || Number(tradeAmount) <= 0) return;
     setMinting(true);
     setError("");
     try {
       const provider = getProvider();
       const signer = await provider.getSigner();
-      const token = new ethers.Contract(MOCK_USDT_ADDRESS, MockUSDTABI.abi, signer);
-      await (await token.mint(account, ethers.parseUnits("100000", USDT_DECIMALS))).wait();
+      await assertContractDeployment(provider, MOCK_USDT_ADDRESS, "mUSDT contract");
+      const token = new ethers.Contract(MOCK_USDT_ADDRESS, MOCK_USDT_ABI, signer);
+      const amount = ethers.parseUnits(tradeAmount, USDT_DECIMALS);
+      const requiredEth = await token.quoteMint(amount);
+      await token.mint.staticCall(amount, { value: requiredEth });
+      await (await token.mint(amount, { value: requiredEth })).wait();
       await fetchData(account, provider);
+      setTradeAmount("");
+      setShowTradeModal(false);
       setSuccess(t("mintSuccess"));
     } catch (err) {
       setError(`${t("mintFailed")}: ${getErrorMessage(err)}`);
     } finally {
       setMinting(false);
+    }
+  };
+
+  const handleAdminMint = async () => {
+    if (!account || minting) return;
+    setMinting(true);
+    setError("");
+    try {
+      const provider = getProvider();
+      const signer = await provider.getSigner();
+      const token = new ethers.Contract(MOCK_USDT_ADDRESS, MOCK_USDT_ABI, signer);
+      const amount = ethers.parseUnits("100000", USDT_DECIMALS);
+      await (await token.mintFree(account, amount)).wait();
+      await fetchData(account, provider);
+      setSuccess(t("adminMintSuccess"));
+    } catch (err) {
+      setError(`${t("adminMintFailed")}: ${getErrorMessage(err)}`);
+    } finally {
+      setMinting(false);
+    }
+  };
+
+  const handleSetOraclePrice = async () => {
+    if (!account || !oraclePrice || Number(oraclePrice) <= 0) return;
+    setLoading(true);
+    setError("");
+    try {
+      const provider = getProvider();
+      const signer = await provider.getSigner();
+      const pool = new ethers.Contract(LENDING_POOL_ADDRESS, POOL_ABI, signer);
+      const oracleAddress = ORACLE_ADDRESS || await pool.priceOracle();
+      const oracle = new ethers.Contract(oracleAddress, ORACLE_ABI, signer);
+      const decimals = await oracle.decimals();
+      const price = ethers.parseUnits(oraclePrice, Number(decimals));
+      await (await oracle.setTemporaryPrice(price)).wait();
+      setOraclePrice("");
+      setShowOracleModal(false);
+      await fetchData(account, provider);
+      setSuccess(t("oracleSuccess"));
+    } catch (err) {
+      setError(`${t("oracleFailed")}: ${getErrorMessage(err)}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -414,7 +514,7 @@ export default function App() {
   const handleDepositCollateral = () => {
     if (!collateralAmount) return;
     return runTransaction(async (signer) => {
-      const token = new ethers.Contract(MOCK_USDT_ADDRESS, MockUSDTABI.abi, signer);
+      const token = new ethers.Contract(MOCK_USDT_ADDRESS, MOCK_USDT_ABI, signer);
       await (await token.approve(LENDING_POOL_ADDRESS, ethers.parseUnits(collateralAmount, 18))).wait();
       return new ethers.Contract(LENDING_POOL_ADDRESS, POOL_ABI, signer)
         .depositCollateral(ethers.parseUnits(collateralAmount, 18));
@@ -456,6 +556,9 @@ export default function App() {
   const busy = loading || !account;
   const totalDebtEthValue = Number(totalDebtEth);
   const poolBalanceEth = Number(poolLiquidity);
+  const liquiditySafetyLimit = Math.max(0, poolBalanceEth * 0.999);
+  const liquiditySafeBorrowETH = Math.min(Number(maxBorrowETH), liquiditySafetyLimit);
+  const liquiditySafeWithdrawETH = Math.min(Number(lenderSupplied), liquiditySafetyLimit);
   const totalAssets = totalDebtEthValue + poolBalanceEth;
   const utilization = totalAssets > 0
     ? (totalDebtEthValue / totalAssets) * 100
@@ -475,12 +578,15 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">P</span><span>PeerPool Lending</span></div>
-        {account && isAdmin && (
+        <div className="brand">
+          {isAdmin && <button className="oracle-button" onClick={() => setShowOracleModal(true)} title={t("oracle")} aria-label={t("oracle")}>⚙</button>}
+          <span className="brand-mark">P</span><span>PeerPool Lending</span>
+        </div>
+        {account && (
           <div className="header-faucet">
-            <button className="faucet-button" onClick={handleMint} disabled={minting || loading}>
+            <button className="faucet-button" onClick={() => setShowTradeModal(true)} disabled={minting || loading}>
               {minting ? <span className="spinner" aria-hidden="true" /> : <span className="faucet-icon" aria-hidden="true">✦</span>}
-              {minting ? t("minting") : t("mint")}
+              {minting ? t("minting") : t("trade")}
             </button>
           </div>
         )}
@@ -612,13 +718,13 @@ export default function App() {
                   label={lendAction === "supply" ? t("amountToSupply") : t("amountToWithdraw")}
                   value={lendAction === "supply" ? depositEthAmount : withdrawEthAmount}
                   onChange={lendAction === "supply" ? setDepositEthAmount : setWithdrawEthAmount}
-                  onMax={() => lendAction === "supply" ? setDepositEthAmount(ethBalance) : setWithdrawEthAmount(lenderSupplied)}
+                  onMax={() => lendAction === "supply" ? setDepositEthAmount(ethBalance) : setWithdrawEthAmount(String(liquiditySafeWithdrawETH))}
                   unit="ETH"
                 />
                 <button
                   className="primary-button full"
                   onClick={lendAction === "supply" ? handleDepositETH : handleWithdrawETH}
-                  disabled={busy || Number(lendAction === "supply" ? depositEthAmount : withdrawEthAmount) <= 0 || Number(lendAction === "supply" ? depositEthAmount : withdrawEthAmount) > Number(lendAction === "supply" ? ethBalance : lenderSupplied)}
+                  disabled={busy || Number(lendAction === "supply" ? depositEthAmount : withdrawEthAmount) <= 0 || Number(lendAction === "supply" ? depositEthAmount : withdrawEthAmount) > Number(lendAction === "supply" ? ethBalance : liquiditySafeWithdrawETH)}
                 >
                   {lendAction === "supply" ? t("supplyEth") : t("withdrawEth")}
                 </button>
@@ -642,11 +748,11 @@ export default function App() {
               <div className="borrow-action-row">
                 <div className="borrow-metrics">
                   <strong>{t("ethBorrowing")}</strong>
-                  <span>{t("maxBorrowAllowed")}: {format(maxBorrowETH)} ETH</span>
+                  <span>{t("maxBorrowAllowed")}: {format(liquiditySafeBorrowETH)} ETH</span>
                   <span>{t("currentDebt")}: {format(liveDebt)} ETH</span>
                 </div>
                 <div className="borrow-row-buttons">
-                  <button className="secondary-button" onClick={() => setBorrowAction(borrowAction === "borrow" ? "" : "borrow")} disabled={busy || Number(maxBorrowETH) <= 0}>{t("borrowEth")}</button>
+                  <button className="secondary-button" onClick={() => setBorrowAction(borrowAction === "borrow" ? "" : "borrow")} disabled={busy || liquiditySafeBorrowETH <= 0}>{t("borrowEth")}</button>
                   <button className="secondary-button" onClick={() => setBorrowAction(borrowAction === "repay" ? "" : "repay")} disabled={busy || !hasBorrowPosition}>{t("repayEth")}</button>
                 </div>
               </div>
@@ -675,14 +781,14 @@ export default function App() {
                   onMax={() => {
                     if (borrowAction === "depositCollateral") setCollateralAmount(usdtBalance);
                     if (borrowAction === "withdrawCollateral") setWithdrawCollateralAmount(withdrawableCollateral);
-                    if (borrowAction === "borrow") setBorrowAmount(maxBorrowETH);
+                    if (borrowAction === "borrow") setBorrowAmount(String(liquiditySafeBorrowETH));
                     if (borrowAction === "repay") setRepayAmount(liveDebt);
                   }}
                   unit={borrowAction.includes("Collateral") ? "mUSDT" : "ETH"}
                 />
                 <div className="helper-text">
                   {borrowAction === "withdrawCollateral" && `${t("safeMaxWithdrawable")}: ${format(withdrawableCollateral)} mUSDT`}
-                  {borrowAction === "borrow" && `${t("maxBorrowAllowed")}: ${format(maxBorrowETH)} ETH`}
+                  {borrowAction === "borrow" && `${t("maxBorrowAllowed")}: ${format(liquiditySafeBorrowETH)} ETH`}
                   {borrowAction === "repay" && `${t("currentDebt")}: ${format(liveDebt)} ETH`}
                   {borrowAction === "depositCollateral" && `${t("available")}: ${format(usdtBalance)} mUSDT`}
                 </div>
@@ -710,7 +816,7 @@ export default function App() {
                     }[borrowAction]) > Number({
                       depositCollateral: usdtBalance,
                       withdrawCollateral: withdrawableCollateral,
-                      borrow: maxBorrowETH,
+                      borrow: liquiditySafeBorrowETH,
                       repay: liveDebt,
                     }[borrowAction])
                   }
@@ -727,6 +833,44 @@ export default function App() {
           </div>
         )}
       </section>
+
+      {isAdmin && (
+        <button className="admin-mint-button" onClick={handleAdminMint} disabled={minting || loading}>
+          {minting ? t("minting") : t("adminMint")}
+        </button>
+      )}
+
+      {showTradeModal && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setShowTradeModal(false)}>
+          <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="trade-title" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-heading">
+              <div><span className="eyebrow">{t("trade")}</span><h2 id="trade-title">ETH → mUSDT</h2></div>
+              <button className="modal-close" onClick={() => setShowTradeModal(false)} aria-label={t("close")}>×</button>
+            </div>
+            <AmountField label={t("amountToTrade")} value={tradeAmount} onChange={setTradeAmount} unit="mUSDT" />
+            <p className="helper-text">{t("tradeHint")}</p>
+            <button className="primary-button full" onClick={handleTrade} disabled={minting || loading || Number(tradeAmount) <= 0}>
+              {minting ? t("minting") : t("trade")}
+            </button>
+          </section>
+        </div>
+      )}
+
+      {isAdmin && showOracleModal && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setShowOracleModal(false)}>
+          <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="oracle-title" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-heading">
+              <div><span className="eyebrow">{t("oracle")}</span><h2 id="oracle-title">{t("oraclePrice")}</h2></div>
+              <button className="modal-close" onClick={() => setShowOracleModal(false)} aria-label={t("close")}>×</button>
+            </div>
+            <AmountField label={t("oraclePrice")} value={oraclePrice} onChange={setOraclePrice} unit="USD" />
+            <p className="helper-text">The temporary price is active for 2 minutes.</p>
+            <button className="primary-button full" onClick={handleSetOraclePrice} disabled={loading || Number(oraclePrice) <= 0}>
+              {loading ? t("transactionPending") : t("setPrice")}
+            </button>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

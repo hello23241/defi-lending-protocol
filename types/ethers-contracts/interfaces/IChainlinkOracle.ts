@@ -2,10 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, ContractRunner, ContractMethod, Listener } from "ethers"
-import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../../common.js"
+import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../common.js"
   
 
-  export interface AggregatorV3InterfaceInterface extends Interface {
+  export interface IChainlinkOracleInterface extends Interface {
     getFunction(nameOrSignature: "decimals" | "description" | "getRoundData" | "latestRoundData" | "version"): FunctionFragment;
 
     
@@ -25,12 +25,12 @@ decodeFunctionResult(functionFragment: 'version', data: BytesLike): Result;
 
   
 
-  export interface AggregatorV3Interface extends BaseContract {
+  export interface IChainlinkOracle extends BaseContract {
     
-    connect(runner?: ContractRunner | null): AggregatorV3Interface;
+    connect(runner?: ContractRunner | null): IChainlinkOracle;
     waitForDeployment(): Promise<this>;
 
-    interface: AggregatorV3InterfaceInterface;
+    interface: IChainlinkOracleInterface;
 
     
   queryFilter<TCEvent extends TypedContractEvent>(

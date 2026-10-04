@@ -13,24 +13,28 @@ export declare namespace DataTypes {
     }
 
   export interface LendingPoolInterface extends Interface {
-    getFunction(nameOrSignature: "BASE_RATE_APY" | "BUFFER_TARGET_PERCENT" | "LIQUIDATION_BONUS" | "LIQUIDATION_THRESHOLD" | "LTV" | "MIN_BUFFER" | "OPTIMAL_UTILIZATION" | "ORACLE_HEARTBEAT" | "RESERVE_FACTOR" | "SECONDS_PER_YEAR" | "SLOPE_1_APY" | "SLOPE_2_APY" | "borrowETH" | "collateralToken" | "depositCollateral" | "depositETH" | "getAccruedInterest" | "getBorrowRatePerSec" | "getCollateralETHValue" | "getLenderBalance" | "getTotalDebt" | "getUserAccountData" | "getWithdrawableCollateral" | "lastBorrowerUpdateTimestamp" | "lastGlobalUpdateTimestamp" | "lenderDepositShares" | "liquidate" | "liquidityIndex" | "owner" | "priceOracle" | "principalBorrowed" | "protocolFees" | "renounceOwnership" | "repayETH" | "reserveBuffer" | "totalDebt" | "totalEthDeposited" | "transferOwnership" | "userCollateral" | "userLiquidityIndex" | "withdrawCollateral" | "withdrawETH" | "withdrawProtocolFees"): FunctionFragment;
+    getFunction(nameOrSignature: "BASE_RATE_APY" | "BPS" | "BUFFER_TARGET_PERCENT" | "LIQUIDATION_BONUS" | "LIQUIDATION_THRESHOLD" | "LTV" | "MAX_RESERVE_FACTOR" | "MIN_BUFFER" | "MIN_HEALTH_FACTOR" | "OPTIMAL_UTILIZATION" | "ORACLE_HEARTBEAT" | "SECONDS_PER_YEAR" | "SLOPE_1_APY" | "SLOPE_2_APY" | "borrowETH" | "borrowIndex" | "collateralToken" | "collateralTokenDecimals" | "depositCollateral" | "depositETH" | "getAccruedInterest" | "getBorrowRatePerSec" | "getCollateralETHValue" | "getLenderBalance" | "getTotalDebt" | "getUserAccountData" | "getWithdrawableCollateral" | "lastBorrowerUpdateTimestamp" | "lastGlobalUpdateTimestamp" | "lenderDepositShares" | "liquidate" | "liquidityIndex" | "oracleDecimals" | "owner" | "priceOracle" | "principalBorrowed" | "protocolFees" | "renounceOwnership" | "repayETH" | "reserveBuffer" | "reserveFactor" | "setReserveFactor" | "totalBadDebt" | "totalDebt" | "totalEthDeposited" | "transferOwnership" | "userBorrowIndex" | "userCollateral" | "userLiquidityIndex" | "withdrawCollateral" | "withdrawETH" | "withdrawProtocolFees" | "withdrawReserveBuffer"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "Borrow" | "CollateralDeposited" | "CollateralWithdrawn" | "Deposit" | "Liquidated" | "OwnershipTransferred" | "ProtocolFeesWithdrawn" | "Repay" | "Withdraw"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "BadDebtCovered" | "Borrow" | "CollateralDeposited" | "CollateralWithdrawn" | "Deposit" | "Liquidated" | "OwnershipTransferred" | "ProtocolFeesWithdrawn" | "Repay" | "ReserveBufferWithdrawn" | "ReserveFactorUpdated" | "Withdraw"): EventFragment;
 
     encodeFunctionData(functionFragment: 'BASE_RATE_APY', values?: undefined): string;
+encodeFunctionData(functionFragment: 'BPS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'BUFFER_TARGET_PERCENT', values?: undefined): string;
 encodeFunctionData(functionFragment: 'LIQUIDATION_BONUS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'LIQUIDATION_THRESHOLD', values?: undefined): string;
 encodeFunctionData(functionFragment: 'LTV', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MAX_RESERVE_FACTOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MIN_BUFFER', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MIN_HEALTH_FACTOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'OPTIMAL_UTILIZATION', values?: undefined): string;
 encodeFunctionData(functionFragment: 'ORACLE_HEARTBEAT', values?: undefined): string;
-encodeFunctionData(functionFragment: 'RESERVE_FACTOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'SECONDS_PER_YEAR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'SLOPE_1_APY', values?: undefined): string;
 encodeFunctionData(functionFragment: 'SLOPE_2_APY', values?: undefined): string;
 encodeFunctionData(functionFragment: 'borrowETH', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'borrowIndex', values?: undefined): string;
 encodeFunctionData(functionFragment: 'collateralToken', values?: undefined): string;
+encodeFunctionData(functionFragment: 'collateralTokenDecimals', values?: undefined): string;
 encodeFunctionData(functionFragment: 'depositCollateral', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'depositETH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getAccruedInterest', values: [AddressLike]): string;
@@ -43,8 +47,9 @@ encodeFunctionData(functionFragment: 'getWithdrawableCollateral', values: [Addre
 encodeFunctionData(functionFragment: 'lastBorrowerUpdateTimestamp', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'lastGlobalUpdateTimestamp', values?: undefined): string;
 encodeFunctionData(functionFragment: 'lenderDepositShares', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'liquidate', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'liquidate', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'liquidityIndex', values?: undefined): string;
+encodeFunctionData(functionFragment: 'oracleDecimals', values?: undefined): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
 encodeFunctionData(functionFragment: 'priceOracle', values?: undefined): string;
 encodeFunctionData(functionFragment: 'principalBorrowed', values: [AddressLike]): string;
@@ -52,29 +57,38 @@ encodeFunctionData(functionFragment: 'protocolFees', values?: undefined): string
 encodeFunctionData(functionFragment: 'renounceOwnership', values?: undefined): string;
 encodeFunctionData(functionFragment: 'repayETH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'reserveBuffer', values?: undefined): string;
+encodeFunctionData(functionFragment: 'reserveFactor', values?: undefined): string;
+encodeFunctionData(functionFragment: 'setReserveFactor', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'totalBadDebt', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalDebt', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalEthDeposited', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'userBorrowIndex', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'userCollateral', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'userLiquidityIndex', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'withdrawCollateral', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'withdrawETH', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'withdrawProtocolFees', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'withdrawReserveBuffer', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'BASE_RATE_APY', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'BPS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'BUFFER_TARGET_PERCENT', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'LIQUIDATION_BONUS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'LIQUIDATION_THRESHOLD', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'LTV', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MAX_RESERVE_FACTOR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MIN_BUFFER', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MIN_HEALTH_FACTOR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'OPTIMAL_UTILIZATION', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'ORACLE_HEARTBEAT', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'RESERVE_FACTOR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'SECONDS_PER_YEAR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'SLOPE_1_APY', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'SLOPE_2_APY', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'borrowETH', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'borrowIndex', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'collateralToken', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'collateralTokenDecimals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'depositCollateral', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'depositETH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAccruedInterest', data: BytesLike): Result;
@@ -89,6 +103,7 @@ decodeFunctionResult(functionFragment: 'lastGlobalUpdateTimestamp', data: BytesL
 decodeFunctionResult(functionFragment: 'lenderDepositShares', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'liquidate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'liquidityIndex', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'oracleDecimals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'priceOracle', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'principalBorrowed', data: BytesLike): Result;
@@ -96,17 +111,34 @@ decodeFunctionResult(functionFragment: 'protocolFees', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'repayETH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'reserveBuffer', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'reserveFactor', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setReserveFactor', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalBadDebt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalDebt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalEthDeposited', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'userBorrowIndex', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'userCollateral', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'userLiquidityIndex', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'withdrawCollateral', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'withdrawReserveBuffer', data: BytesLike): Result;
   }
 
   
+    export namespace BadDebtCoveredEvent {
+      export type InputTuple = [amountCovered: BigNumberish, remainingBadDebt: BigNumberish];
+      export type OutputTuple = [amountCovered: bigint, remainingBadDebt: bigint];
+      export interface OutputObject {amountCovered: bigint, remainingBadDebt: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace BorrowEvent {
       export type InputTuple = [borrower: AddressLike, amount: BigNumberish];
       export type OutputTuple = [borrower: string, amount: bigint];
@@ -203,6 +235,30 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
 
   
 
+    export namespace ReserveBufferWithdrawnEvent {
+      export type InputTuple = [admin: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [admin: string, amount: bigint];
+      export interface OutputObject {admin: string, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ReserveFactorUpdatedEvent {
+      export type InputTuple = [newFactor: BigNumberish];
+      export type OutputTuple = [newFactor: bigint];
+      export interface OutputObject {newFactor: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace WithdrawEvent {
       export type InputTuple = [lender: AddressLike, amount: BigNumberish];
       export type OutputTuple = [lender: string, amount: bigint];
@@ -257,6 +313,14 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
     
 
     
+    BPS: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     BUFFER_TARGET_PERCENT: TypedContractMethod<
       [],
       [bigint],
@@ -289,7 +353,23 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
     
 
     
+    MAX_RESERVE_FACTOR: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     MIN_BUFFER: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    MIN_HEALTH_FACTOR: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -306,14 +386,6 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
 
     
     ORACLE_HEARTBEAT: TypedContractMethod<
-      [],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    RESERVE_FACTOR: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -353,9 +425,25 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
     
 
     
+    borrowIndex: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     collateralToken: TypedContractMethod<
       [],
       [string],
+      'view'
+    >
+    
+
+    
+    collateralTokenDecimals: TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >
     
@@ -458,7 +546,7 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
 
     
     liquidate: TypedContractMethod<
-      [borrower: AddressLike, ],
+      [borrower: AddressLike, debtToCover: BigNumberish, ],
       [void],
       'payable'
     >
@@ -466,6 +554,14 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
 
     
     liquidityIndex: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    oracleDecimals: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -529,6 +625,30 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
     
 
     
+    reserveFactor: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    setReserveFactor: TypedContractMethod<
+      [newFactor: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    totalBadDebt: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     totalDebt: TypedContractMethod<
       [],
       [bigint],
@@ -549,6 +669,14 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
       [newOwner: AddressLike, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    userBorrowIndex: TypedContractMethod<
+      [arg0: AddressLike, ],
+      [bigint],
+      'view'
     >
     
 
@@ -592,10 +720,23 @@ decodeFunctionResult(functionFragment: 'withdrawProtocolFees', data: BytesLike):
     >
     
 
+    
+    withdrawReserveBuffer: TypedContractMethod<
+      [amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
     getFunction(nameOrSignature: 'BASE_RATE_APY'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'BPS'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -620,7 +761,17 @@ getFunction(nameOrSignature: 'LTV'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'MAX_RESERVE_FACTOR'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'MIN_BUFFER'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'MIN_HEALTH_FACTOR'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -631,11 +782,6 @@ getFunction(nameOrSignature: 'OPTIMAL_UTILIZATION'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'ORACLE_HEARTBEAT'): TypedContractMethod<
-      [],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'RESERVE_FACTOR'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -660,9 +806,19 @@ getFunction(nameOrSignature: 'borrowETH'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'borrowIndex'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'collateralToken'): TypedContractMethod<
       [],
       [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'collateralTokenDecimals'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'depositCollateral'): TypedContractMethod<
@@ -726,11 +882,16 @@ getFunction(nameOrSignature: 'lenderDepositShares'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'liquidate'): TypedContractMethod<
-      [borrower: AddressLike, ],
+      [borrower: AddressLike, debtToCover: BigNumberish, ],
       [void],
       'payable'
     >;
 getFunction(nameOrSignature: 'liquidityIndex'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'oracleDecimals'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -770,6 +931,21 @@ getFunction(nameOrSignature: 'reserveBuffer'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'reserveFactor'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'setReserveFactor'): TypedContractMethod<
+      [newFactor: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'totalBadDebt'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'totalDebt'): TypedContractMethod<
       [],
       [bigint],
@@ -784,6 +960,11 @@ getFunction(nameOrSignature: 'transferOwnership'): TypedContractMethod<
       [newOwner: AddressLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'userBorrowIndex'): TypedContractMethod<
+      [arg0: AddressLike, ],
+      [bigint],
+      'view'
     >;
 getFunction(nameOrSignature: 'userCollateral'): TypedContractMethod<
       [arg0: AddressLike, ],
@@ -810,8 +991,14 @@ getFunction(nameOrSignature: 'withdrawProtocolFees'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'withdrawReserveBuffer'): TypedContractMethod<
+      [amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 
-    getEvent(key: 'Borrow'): TypedContractEvent<BorrowEvent.InputTuple, BorrowEvent.OutputTuple, BorrowEvent.OutputObject>;
+    getEvent(key: 'BadDebtCovered'): TypedContractEvent<BadDebtCoveredEvent.InputTuple, BadDebtCoveredEvent.OutputTuple, BadDebtCoveredEvent.OutputObject>;
+getEvent(key: 'Borrow'): TypedContractEvent<BorrowEvent.InputTuple, BorrowEvent.OutputTuple, BorrowEvent.OutputObject>;
 getEvent(key: 'CollateralDeposited'): TypedContractEvent<CollateralDepositedEvent.InputTuple, CollateralDepositedEvent.OutputTuple, CollateralDepositedEvent.OutputObject>;
 getEvent(key: 'CollateralWithdrawn'): TypedContractEvent<CollateralWithdrawnEvent.InputTuple, CollateralWithdrawnEvent.OutputTuple, CollateralWithdrawnEvent.OutputObject>;
 getEvent(key: 'Deposit'): TypedContractEvent<DepositEvent.InputTuple, DepositEvent.OutputTuple, DepositEvent.OutputObject>;
@@ -819,10 +1006,16 @@ getEvent(key: 'Liquidated'): TypedContractEvent<LiquidatedEvent.InputTuple, Liqu
 getEvent(key: 'OwnershipTransferred'): TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
 getEvent(key: 'ProtocolFeesWithdrawn'): TypedContractEvent<ProtocolFeesWithdrawnEvent.InputTuple, ProtocolFeesWithdrawnEvent.OutputTuple, ProtocolFeesWithdrawnEvent.OutputObject>;
 getEvent(key: 'Repay'): TypedContractEvent<RepayEvent.InputTuple, RepayEvent.OutputTuple, RepayEvent.OutputObject>;
+getEvent(key: 'ReserveBufferWithdrawn'): TypedContractEvent<ReserveBufferWithdrawnEvent.InputTuple, ReserveBufferWithdrawnEvent.OutputTuple, ReserveBufferWithdrawnEvent.OutputObject>;
+getEvent(key: 'ReserveFactorUpdated'): TypedContractEvent<ReserveFactorUpdatedEvent.InputTuple, ReserveFactorUpdatedEvent.OutputTuple, ReserveFactorUpdatedEvent.OutputObject>;
 getEvent(key: 'Withdraw'): TypedContractEvent<WithdrawEvent.InputTuple, WithdrawEvent.OutputTuple, WithdrawEvent.OutputObject>;
 
     filters: {
       
+      'BadDebtCovered(uint256,uint256)': TypedContractEvent<BadDebtCoveredEvent.InputTuple, BadDebtCoveredEvent.OutputTuple, BadDebtCoveredEvent.OutputObject>;
+      BadDebtCovered: TypedContractEvent<BadDebtCoveredEvent.InputTuple, BadDebtCoveredEvent.OutputTuple, BadDebtCoveredEvent.OutputObject>;
+    
+
       'Borrow(address,uint256)': TypedContractEvent<BorrowEvent.InputTuple, BorrowEvent.OutputTuple, BorrowEvent.OutputObject>;
       Borrow: TypedContractEvent<BorrowEvent.InputTuple, BorrowEvent.OutputTuple, BorrowEvent.OutputObject>;
     
@@ -853,6 +1046,14 @@ getEvent(key: 'Withdraw'): TypedContractEvent<WithdrawEvent.InputTuple, Withdraw
 
       'Repay(address,uint256)': TypedContractEvent<RepayEvent.InputTuple, RepayEvent.OutputTuple, RepayEvent.OutputObject>;
       Repay: TypedContractEvent<RepayEvent.InputTuple, RepayEvent.OutputTuple, RepayEvent.OutputObject>;
+    
+
+      'ReserveBufferWithdrawn(address,uint256)': TypedContractEvent<ReserveBufferWithdrawnEvent.InputTuple, ReserveBufferWithdrawnEvent.OutputTuple, ReserveBufferWithdrawnEvent.OutputObject>;
+      ReserveBufferWithdrawn: TypedContractEvent<ReserveBufferWithdrawnEvent.InputTuple, ReserveBufferWithdrawnEvent.OutputTuple, ReserveBufferWithdrawnEvent.OutputObject>;
+    
+
+      'ReserveFactorUpdated(uint256)': TypedContractEvent<ReserveFactorUpdatedEvent.InputTuple, ReserveFactorUpdatedEvent.OutputTuple, ReserveFactorUpdatedEvent.OutputObject>;
+      ReserveFactorUpdated: TypedContractEvent<ReserveFactorUpdatedEvent.InputTuple, ReserveFactorUpdatedEvent.OutputTuple, ReserveFactorUpdatedEvent.OutputObject>;
     
 
       'Withdraw(address,uint256)': TypedContractEvent<WithdrawEvent.InputTuple, WithdrawEvent.OutputTuple, WithdrawEvent.OutputObject>;

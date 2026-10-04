@@ -7,9 +7,11 @@ export default defineConfig({
     profiles: {
       default: {
         version: "0.8.34",
+        preferWasm: true,
       },
       production: {
         version: "0.8.34",
+        preferWasm: true,
         settings: {
           optimizer: {
             enabled: true,
