@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface MockUSDTInterface extends Interface {
-    getFunction(nameOrSignature: "ORACLE_HEARTBEAT" | "allowance" | "approve" | "balanceOf" | "burnForLiquidation" | "decimals" | "lendingPool" | "mint" | "mintFree" | "name" | "owner" | "priceOracle" | "quoteMint" | "renounceOwnership" | "setLendingPool" | "symbol" | "totalSupply" | "transfer" | "transferFrom" | "transferOwnership"): FunctionFragment;
+    getFunction(nameOrSignature: "ORACLE_HEARTBEAT" | "allowance" | "approve" | "balanceOf" | "burnForLiquidation" | "decimals" | "lendingPool" | "mint" | "mintFree" | "name" | "owner" | "priceOracle" | "quoteMint" | "renounceOwnership" | "setLendingPool" | "symbol" | "totalSupply" | "transfer" | "transferFrom" | "transferOwnership" | "withdrawETH"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "Approval" | "LiquidationBurn" | "OwnershipTransferred" | "PublicMint" | "Transfer"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "Approval" | "ETHWithdrawn" | "LiquidationBurn" | "OwnershipTransferred" | "PublicMint" | "Transfer"): EventFragment;
 
     encodeFunctionData(functionFragment: 'ORACLE_HEARTBEAT', values?: undefined): string;
 encodeFunctionData(functionFragment: 'allowance', values: [AddressLike, AddressLike]): string;
@@ -30,6 +30,7 @@ encodeFunctionData(functionFragment: 'totalSupply', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transfer', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferFrom', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'withdrawETH', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'ORACLE_HEARTBEAT', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'allowance', data: BytesLike): Result;
@@ -51,6 +52,7 @@ decodeFunctionResult(functionFragment: 'totalSupply', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transfer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'withdrawETH', data: BytesLike): Result;
   }
 
   
@@ -58,6 +60,18 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
       export type InputTuple = [owner: AddressLike, spender: AddressLike, value: BigNumberish];
       export type OutputTuple = [owner: string, spender: string, value: bigint];
       export interface OutputObject {owner: string, spender: string, value: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ETHWithdrawnEvent {
+      export type InputTuple = [owner: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [owner: string, amount: bigint];
+      export interface OutputObject {owner: string, amount: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -307,6 +321,14 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
     >
     
 
+    
+    withdrawETH: TypedContractMethod<
+      [amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
@@ -410,8 +432,14 @@ getFunction(nameOrSignature: 'transferOwnership'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'withdrawETH'): TypedContractMethod<
+      [amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 
     getEvent(key: 'Approval'): TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
+getEvent(key: 'ETHWithdrawn'): TypedContractEvent<ETHWithdrawnEvent.InputTuple, ETHWithdrawnEvent.OutputTuple, ETHWithdrawnEvent.OutputObject>;
 getEvent(key: 'LiquidationBurn'): TypedContractEvent<LiquidationBurnEvent.InputTuple, LiquidationBurnEvent.OutputTuple, LiquidationBurnEvent.OutputObject>;
 getEvent(key: 'OwnershipTransferred'): TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
 getEvent(key: 'PublicMint'): TypedContractEvent<PublicMintEvent.InputTuple, PublicMintEvent.OutputTuple, PublicMintEvent.OutputObject>;
@@ -421,6 +449,10 @@ getEvent(key: 'Transfer'): TypedContractEvent<TransferEvent.InputTuple, Transfer
       
       'Approval(address,address,uint256)': TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
       Approval: TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
+    
+
+      'ETHWithdrawn(address,uint256)': TypedContractEvent<ETHWithdrawnEvent.InputTuple, ETHWithdrawnEvent.OutputTuple, ETHWithdrawnEvent.OutputObject>;
+      ETHWithdrawn: TypedContractEvent<ETHWithdrawnEvent.InputTuple, ETHWithdrawnEvent.OutputTuple, ETHWithdrawnEvent.OutputObject>;
     
 
       'LiquidationBurn(uint256,uint256,uint256)': TypedContractEvent<LiquidationBurnEvent.InputTuple, LiquidationBurnEvent.OutputTuple, LiquidationBurnEvent.OutputObject>;

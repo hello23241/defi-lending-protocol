@@ -16,8 +16,8 @@ getContractFactory(name: 'ChainlinkOracle', signerOrOptions?: ethers.Signer | Fa
 getContractFactory(name: 'LendingPoolStorage', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LendingPoolStorage__factory>
 getContractFactory(name: 'MockUSDT', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MockUSDT__factory>
 getContractFactory(name: 'TestChainlinkFeed', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TestChainlinkFeed__factory>
-getContractFactory(name: 'ILiquidationBurnable', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ILiquidationBurnable__factory>
 getContractFactory(name: 'IChainlinkOracle', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IChainlinkOracle__factory>
+getContractFactory(name: 'ILiquidationBurnable', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ILiquidationBurnable__factory>
 
   getContractAt(name: 'InterestRateModel', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.InterestRateModel>
 getContractAt(name: 'LendingPool', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LendingPool>
@@ -25,8 +25,8 @@ getContractAt(name: 'ChainlinkOracle', address: string | ethers.Addressable, sig
 getContractAt(name: 'LendingPoolStorage', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LendingPoolStorage>
 getContractAt(name: 'MockUSDT', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MockUSDT>
 getContractAt(name: 'TestChainlinkFeed', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TestChainlinkFeed>
-getContractAt(name: 'ILiquidationBurnable', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ILiquidationBurnable>
 getContractAt(name: 'IChainlinkOracle', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IChainlinkOracle>
+getContractAt(name: 'ILiquidationBurnable', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ILiquidationBurnable>
 
   deployContract(name: 'InterestRateModel', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.InterestRateModel>
 deployContract(name: 'LendingPool', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPool>
@@ -34,8 +34,8 @@ deployContract(name: 'ChainlinkOracle', signerOrOptions?: ethers.Signer | Deploy
 deployContract(name: 'LendingPoolStorage', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPoolStorage>
 deployContract(name: 'MockUSDT', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockUSDT>
 deployContract(name: 'TestChainlinkFeed', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TestChainlinkFeed>
-deployContract(name: 'ILiquidationBurnable', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ILiquidationBurnable>
 deployContract(name: 'IChainlinkOracle', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IChainlinkOracle>
+deployContract(name: 'ILiquidationBurnable', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ILiquidationBurnable>
 
   deployContract(name: 'InterestRateModel', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.InterestRateModel>
 deployContract(name: 'LendingPool', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPool>
@@ -43,8 +43,8 @@ deployContract(name: 'ChainlinkOracle', args: any[], signerOrOptions?: ethers.Si
 deployContract(name: 'LendingPoolStorage', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LendingPoolStorage>
 deployContract(name: 'MockUSDT', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockUSDT>
 deployContract(name: 'TestChainlinkFeed', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TestChainlinkFeed>
-deployContract(name: 'ILiquidationBurnable', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ILiquidationBurnable>
 deployContract(name: 'IChainlinkOracle', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IChainlinkOracle>
+deployContract(name: 'ILiquidationBurnable', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ILiquidationBurnable>
 
     // default types
     getContractFactory(

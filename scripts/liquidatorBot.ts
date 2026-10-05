@@ -15,11 +15,13 @@ const DEFAULT_LOG_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
 const HEALTH_FACTOR_ONE = 10n ** 18n;
 const HIGH_RISK_HEALTH_FACTOR = 95n * 10n ** 16n;
 const MIN_BOT_BALANCE = ethers.parseEther("0.05");
+const MIN_COLLATERAL_THRESHOLD = ethers.parseUnits("0.01", 18);
 const LIQUIDATION_BONUS_BPS = 10_500n;
 const BPS = 10_000n;
 
 const poolAddress = process.env.VITE_LENDING_POOL_ADDRESS;
 const tokenAddress = process.env.VITE_MOCK_USDT_ADDRESS;
+const MANUAL_BORROWERS: string[] = [];
 
 const missingAddresses = [
   !poolAddress ? "VITE_LENDING_POOL_ADDRESS" : "",
@@ -51,9 +53,19 @@ const token = new ethers.Contract(configuredTokenAddress, [
   "function transfer(address,uint256) returns (bool)",
 ], provider);
 
-const borrowers = new Set<string>();
+const trackedBorrowers = new Set<string>();
 const pendingLiquidations = new Set<string>();
 let pollRunning = false;
+let lastBorrowScanBlock = 0;
+let lastBorrowScanWarning = 0;
+
+function addBorrower(address: string) {
+  if (ethers.isAddress(address)) {
+    trackedBorrowers.add(ethers.getAddress(address));
+  } else {
+    console.warn(`[BOT WARNING] Ignoring invalid borrower address: ${address}`);
+  }
+}
 
 function formatEth(value: bigint): string {
   return ethers.formatEther(value);
@@ -78,12 +90,19 @@ async function checkAndFundBot(signer: Signer) {
 
 async function discoverBorrowers() {
   const latestBlock = await provider.getBlockNumber();
-  const configuredStartBlock = Number(process.env.BOT_START_BLOCK ?? 0);
-  if (!Number.isInteger(configuredStartBlock) || configuredStartBlock < 0) {
-    throw new Error("BOT_START_BLOCK must be a non-negative integer when provided.");
+  const configuredStartBlock = process.env.BOT_START_BLOCK;
+  let startBlock = latestBlock;
+  if (configuredStartBlock !== undefined) {
+    const parsedStartBlock = Number(configuredStartBlock);
+    if (Number.isInteger(parsedStartBlock) && parsedStartBlock >= 0) {
+      startBlock = Math.min(parsedStartBlock, latestBlock);
+    } else {
+      console.warn("[BOT WARNING] Invalid BOT_START_BLOCK; starting event discovery from the latest block.");
+    }
+  } else {
+    console.log("[BOT] BOT_START_BLOCK is not configured; relying on live events, polling, and seeded borrowers.");
   }
 
-  const startBlock = Math.min(configuredStartBlock, latestBlock);
   const logRpcUrl = process.env.VITE_LOG_RPC_URL ?? DEFAULT_LOG_RPC_URL;
   const logProvider = new ethers.JsonRpcProvider(logRpcUrl);
   const logPool = pool.connect(logProvider);
@@ -94,9 +113,10 @@ async function discoverBorrowers() {
       const events = await logPool.queryFilter(logPool.filters.Borrow(), fromBlock, toBlock);
       for (const event of events) {
         const borrower = "args" in event ? event.args?.[0] : undefined;
-        if (typeof borrower === "string") borrowers.add(ethers.getAddress(borrower));
+        if (typeof borrower === "string") addBorrower(borrower);
       }
     }
+    lastBorrowScanBlock = latestBlock;
   } catch (error) {
     console.warn(
       `[BOT WARNING] Historical Borrow discovery unavailable through ${logRpcUrl}. ` +
@@ -105,7 +125,27 @@ async function discoverBorrowers() {
       error,
     );
   }
-  console.log(`[BOT] Tracking ${borrowers.size} borrower(s).`);
+  console.log(`[BOT] Tracking ${trackedBorrowers.size} active non-dust borrower(s).`);
+}
+
+async function refreshBorrowers() {
+  const latestBlock = await provider.getBlockNumber();
+  const fromBlock = Math.max(lastBorrowScanBlock + 1, 0);
+  if (fromBlock > latestBlock) return;
+
+  try {
+    const events = await pool.queryFilter(pool.filters.Borrow(), fromBlock, latestBlock);
+    for (const event of events) {
+      const borrower = "args" in event ? event.args?.[0] : undefined;
+      if (typeof borrower === "string") addBorrower(borrower);
+    }
+    lastBorrowScanBlock = latestBlock;
+  } catch (error) {
+    if (Date.now() - lastBorrowScanWarning > 60_000) {
+      console.warn("[BOT WARNING] Incremental Borrow event scan failed; seeded borrowers will still be polled.", error);
+      lastBorrowScanWarning = Date.now();
+    }
+  }
 }
 
 async function gasOverrides(healthFactor: bigint) {
@@ -139,15 +179,36 @@ async function evaluateBorrower(
 ) {
   if (pendingLiquidations.has(borrower)) return;
 
-  const data = await pool.getUserAccountData(borrower);
-  const healthFactor = data.healthFactor as bigint;
-  if (healthFactor >= HEALTH_FACTOR_ONE) return;
+  let healthFactor: bigint;
+  let debtToCover: bigint;
+  try {
+    const data = await pool.getUserAccountData(borrower);
+    healthFactor = data.healthFactor as bigint;
+    debtToCover = data.totalDebtETH as bigint;
+    const totalCollateralBase = (data.totalCollateralBase ?? data.totalCollateralETH) as bigint;
+    const totalDebtBase = (data.totalDebtBase ?? data.totalDebtETH) as bigint;
+    if (totalCollateralBase < MIN_COLLATERAL_THRESHOLD && totalDebtBase === 0n) {
+      trackedBorrowers.delete(borrower);
+      return;
+    }
+  } catch (error) {
+    console.error(`[BOT ERROR] Failed to evaluate ${borrower}; continuing with other borrowers.`, error);
+    return;
+  }
 
-  const debtToCover = (await pool.getTotalDebt(borrower)) as bigint;
-  const collateral = (await pool.userCollateral(borrower)) as bigint;
+  console.log(`[EVAL] Borrower: ${borrower} | HF: ${ethers.formatUnits(healthFactor, 18)} | Debt: ${formatEth(debtToCover)} ETH`);
+  if (healthFactor >= HEALTH_FACTOR_ONE || debtToCover === 0n) return;
+
+  console.log(`[LIQUIDATION TRIGGERED] Attempting liquidation for ${borrower}`);
+
+  let collateral: bigint;
+  try {
+    collateral = (await pool.userCollateral(borrower)) as bigint;
+  } catch (error) {
+    console.error(`[BOT ERROR] Failed to read collateral for ${borrower}; continuing with other borrowers.`, error);
+    return;
+  }
   if (debtToCover === 0n || collateral === 0n) return;
-
-  console.log(`[LIQUIDATION DETECTED] Borrower: ${borrower} | HF: ${ethers.formatUnits(healthFactor, 18)} | Debt: ${formatEth(debtToCover)} ETH`);
 
   const [, answer] = await oracle.latestRoundData();
   if (answer <= 0n) throw new Error("Oracle returned a non-positive price.");
@@ -166,10 +227,6 @@ async function evaluateBorrower(
   });
   const gasCost = gasEstimate * (overrides.maxFeePerGas ?? 0n);
   const netProfitEth = seizedValueEth - debtToCover - gasCost;
-  if (netProfitEth <= 0n) {
-    console.log(`[BOT SKIP] ${borrower} is not profitable after gas.`);
-    return;
-  }
 
   pendingLiquidations.add(borrower);
   try {
@@ -205,6 +262,8 @@ async function poll(signer: Signer) {
   if (pollRunning) return;
   pollRunning = true;
   try {
+    await refreshBorrowers();
+    console.log(`[POLL] Tracking ${trackedBorrowers.size} active non-dust borrower(s)...`);
     const [rawTokenDecimals, rawOracleAddress] = await Promise.all([
       token.decimals(),
       pool.priceOracle(),
@@ -216,9 +275,13 @@ async function poll(signer: Signer) {
       "function latestRoundData() view returns(uint80,int256,uint256,uint256,uint80)",
     ], provider);
     const oracleDecimals = Number(await oracle.decimals());
-    await Promise.all([...borrowers].map((borrower) =>
-      evaluateBorrower(borrower, signer, tokenDecimals, oracleDecimals, oracle),
-    ));
+    for (const borrower of trackedBorrowers) {
+      try {
+        await evaluateBorrower(borrower, signer, tokenDecimals, oracleDecimals, oracle);
+      } catch (error) {
+        console.error(`[BOT ERROR] Evaluation failed for ${borrower}; continuing poll.`, error);
+      }
+    }
   } catch (error) {
     console.error("[BOT ERROR] Poll failed:", error);
   } finally {
@@ -239,8 +302,15 @@ if (configuredDeveloperWallet) {
   console.log(`[BOT CONFIG] Beneficiary Wallet set to: ${developerAddress} (Fallback to deployer/signer)`);
 }
 await checkAndFundBot(signer);
+for (const borrower of [...MANUAL_BORROWERS, ...(process.env.TARGET_BORROWER ?? "").split(",").filter(Boolean)]) {
+  addBorrower(borrower.trim());
+}
 await discoverBorrowers();
-pool.on(pool.filters.Borrow(), (borrower: string) => borrowers.add(ethers.getAddress(borrower)));
+try {
+  pool.on(pool.filters.Borrow(), (borrower: string) => addBorrower(borrower));
+} catch (error) {
+  console.warn("[BOT WARNING] Live Borrow event subscription failed; incremental polling will continue.", error);
+}
 await poll(signer);
 setInterval(() => void poll(signer), POLL_INTERVAL_MS);
 console.log(`[BOT] Liquidator bot running. Poll interval: ${POLL_INTERVAL_MS / 1000}s.`);

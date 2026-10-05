@@ -3,15 +3,17 @@ pragma solidity ^0.8.34;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/IChainlinkOracle.sol";
 
-contract MockUSDT is ERC20, Ownable {
+contract MockUSDT is ERC20, Ownable, ReentrancyGuard {
     uint256 public constant ORACLE_HEARTBEAT = 3600;
     IChainlinkOracle public immutable priceOracle;
     address public lendingPool;
 
     event PublicMint(address indexed account, uint256 ethPaid, uint256 amount);
     event LiquidationBurn(uint256 amount, uint256 poolShare, uint256 treasuryShare);
+    event ETHWithdrawn(address indexed owner, uint256 amount);
 
     constructor(address oracle) ERC20("Mock Tether", "mUSDT") Ownable(msg.sender) {
         require(oracle != address(0), "Invalid oracle");
@@ -38,6 +40,15 @@ contract MockUSDT is ERC20, Ownable {
     function mintFree(address recipient, uint256 amount) external onlyOwner {
         require(recipient != address(0), "Invalid recipient");
         _mint(recipient, amount);
+    }
+
+    function withdrawETH(uint256 amount) external onlyOwner nonReentrant {
+        require(amount > 0, "Zero withdrawal");
+        require(address(this).balance >= amount, "Insufficient ETH balance");
+
+        (bool success, ) = payable(owner()).call{value: amount}("");
+        require(success, "ETH transfer failed");
+        emit ETHWithdrawn(owner(), amount);
     }
 
     function quoteMint(uint256 amount) public view returns (uint256) {

@@ -48,6 +48,23 @@ describe("LendingPool", function () {
     expect(await oracle.TEMPORARY_OVERRIDE_DURATION()).to.equal(120n);
   });
 
+  it("allows only the owner to withdraw ETH held by mUSDT", async function () {
+    const { deployer, borrower, token } = await networkHelpers.loadFixture(
+      deployLendingPoolFixture,
+    );
+    const mintAmount = ethers.parseUnits("2500", 18);
+    const ethPaid = await token.quoteMint(mintAmount);
+    await token.connect(borrower).mint(mintAmount, { value: ethPaid });
+
+    await expect(token.connect(borrower).withdrawETH(ethPaid))
+      .to.be.revertedWithCustomError(token, "OwnableUnauthorizedAccount")
+      .withArgs(borrower.address);
+    await expect(token.withdrawETH(ethPaid))
+      .to.emit(token, "ETHWithdrawn")
+      .withArgs(deployer.address, ethPaid);
+    expect(await ethers.provider.getBalance(await token.getAddress())).to.equal(0n);
+  });
+
   it("configures the reserve factor within the owner cap", async function () {
     const { borrower, pool } = await networkHelpers.loadFixture(
       deployLendingPoolFixture,
@@ -64,6 +81,19 @@ describe("LendingPool", function () {
     await expect(pool.connect(borrower).setReserveFactor(2000n))
       .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
       .withArgs(borrower.address);
+  });
+
+  it("reports no sweepable ETH when the pool has no untracked surplus", async function () {
+    const { deployer, borrower, pool } = await networkHelpers.loadFixture(
+      deployLendingPoolFixture,
+    );
+    const [trackedBalance, excess] = await pool.getSweepableExcessETH();
+    expect(trackedBalance).to.equal(0n);
+    expect(excess).to.equal(0n);
+    await expect(pool.connect(borrower).sweepExcessETH())
+      .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
+      .withArgs(borrower.address);
+    await expect(pool.connect(deployer).sweepExcessETH()).to.not.revert(ethers);
   });
 
   it("guards reserve buffer withdrawals", async function () {
@@ -109,7 +139,7 @@ describe("LendingPool", function () {
 
     const accountData = await pool.getUserAccountData(borrower.address);
     const collateralValue = await pool.getCollateralETHValue(collateral);
-    expect(accountData.maxBorrowETH).to.equal((collateralValue * 80n) / 120n);
+    expect(accountData.maxBorrowETH).to.equal((collateralValue * 80n) / 100n);
 
     await expect(pool.connect(borrower).borrowETH(borrowAmount))
       .to.emit(pool, "Borrow")

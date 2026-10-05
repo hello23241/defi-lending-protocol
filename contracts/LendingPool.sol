@@ -10,12 +10,14 @@ contract LendingPool is LendingPoolStorage, InterestRateModel {
     // Protocol Constants
     uint256 public constant LTV = 70;                   // Max borrow power: 70%
     uint256 public constant LIQUIDATION_THRESHOLD = 80; // Liquidation triggers at 80% LTV
-    uint256 public constant MIN_HEALTH_FACTOR = 1.2e18;
+    uint256 public constant MIN_HEALTH_FACTOR = 1e18;
     uint256 public constant LIQUIDATION_BONUS = 5;      // Liquidator receives 5% bonus collateral
     uint256 public constant BPS = 10_000;
     uint256 public constant MIN_BUFFER = 10 ether;
     uint256 public constant BUFFER_TARGET_PERCENT = 20;
     uint256 public constant ORACLE_HEARTBEAT = 3600;
+
+    error LendingPool__HealthFactorTooLow();
 
     event Deposit(address indexed lender, uint256 amount);
     event Withdraw(address indexed lender, uint256 amount);
@@ -26,6 +28,7 @@ contract LendingPool is LendingPoolStorage, InterestRateModel {
     event Liquidated(address indexed borrower, address indexed liquidator, uint256 debtRepaid, uint256 collateralSeized);
     event ProtocolFeesWithdrawn(address indexed owner, uint256 amount);
     event ReserveBufferWithdrawn(address indexed admin, uint256 amount);
+    event ExcessETHSwept(address indexed owner, uint256 amount);
     event BadDebtCovered(uint256 amountCovered, uint256 remainingBadDebt);
 
     constructor(address _collateralToken, address _priceOracle)
@@ -119,6 +122,10 @@ contract LendingPool is LendingPoolStorage, InterestRateModel {
         }
     }
 
+    function calculateHealthFactor(address user) public view returns (uint256) {
+        return getUserAccountData(user).healthFactor;
+    }
+
     // ------------------------------------------------------------------------
     // LENDER FUNCTIONS
     // ------------------------------------------------------------------------
@@ -184,7 +191,9 @@ contract LendingPool is LendingPoolStorage, InterestRateModel {
 
         if (principalBorrowed[msg.sender] > 0) {
             DataTypes.UserAccountData memory data = getUserAccountData(msg.sender);
-            require(data.healthFactor >= MIN_HEALTH_FACTOR, "Withdrawal drops Health Factor below 1.2");
+            if (data.healthFactor < MIN_HEALTH_FACTOR) {
+                revert LendingPool__HealthFactorTooLow();
+            }
         }
 
         require(collateralToken.transfer(msg.sender, amount), "Transfer failed");
@@ -202,7 +211,9 @@ contract LendingPool is LendingPoolStorage, InterestRateModel {
         lastBorrowerUpdateTimestamp[msg.sender] = block.timestamp;
 
         DataTypes.UserAccountData memory data = getUserAccountData(msg.sender);
-        require(amount <= data.maxBorrowETH, "Exceeds max borrow power (health factor)");
+        if (amount > data.maxBorrowETH) {
+            revert LendingPool__HealthFactorTooLow();
+        }
 
         principalBorrowed[msg.sender] += amount;
         totalDebt += amount;
@@ -337,6 +348,23 @@ contract LendingPool is LendingPoolStorage, InterestRateModel {
         require(success, "ETH transfer failed");
 
         emit ReserveBufferWithdrawn(owner(), amount);
+    }
+
+    function getSweepableExcessETH() public view returns (uint256 trackedBalance, uint256 excess) {
+        uint256 accountedBalance = totalEthDeposited + reserveBuffer + protocolFees;
+        trackedBalance = accountedBalance > totalDebt ? accountedBalance - totalDebt : 0;
+        uint256 actualBalance = address(this).balance;
+        excess = actualBalance > trackedBalance ? actualBalance - trackedBalance : 0;
+    }
+
+    function sweepExcessETH() external onlyOwner nonReentrant {
+        _updateGlobalState();
+        (, uint256 excess) = getSweepableExcessETH();
+        if (excess == 0) return;
+
+        (bool success, ) = payable(owner()).call{value: excess}("");
+        require(success, "ETH transfer failed");
+        emit ExcessETHSwept(owner(), excess);
     }
 
     function _updateGlobalState() internal {

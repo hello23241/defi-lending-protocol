@@ -16,7 +16,7 @@ export { ChainlinkOracle__factory } from './factories/ChainlinkOracle__factory.j
 export { LendingPoolStorage__factory } from './factories/LendingPoolStorage__factory.js';
 export { MockUSDT__factory } from './factories/MockUSDT__factory.js';
 export { TestChainlinkFeed__factory } from './factories/TestChainlinkFeed__factory.js';
-export type { ILiquidationBurnable } from './interfaces/ILiquidationBurnable.js';
-export { ILiquidationBurnable__factory } from './factories/interfaces/ILiquidationBurnable__factory.js';
 export type { IChainlinkOracle } from './interfaces/IChainlinkOracle.js';
 export { IChainlinkOracle__factory } from './factories/interfaces/IChainlinkOracle__factory.js';
+export type { ILiquidationBurnable } from './interfaces/ILiquidationBurnable.js';
+export { ILiquidationBurnable__factory } from './factories/interfaces/ILiquidationBurnable__factory.js';

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ethers } from "ethers";
 import LendingPoolABI from "./abis/LendingPool.json";
 import "./App.css";
@@ -57,6 +57,21 @@ const translations = {
     close: "Close",
     amountToTrade: "Amount to receive",
     tradeHint: "The required ETH will be calculated from the oracle price.",
+    currentTradingValue: "Current trading value",
+    oracleUnavailable: "Trading value unavailable",
+    currentHF: "Current HF",
+    projectedHF: "Projected HF",
+    hfWarningBelow: "Projected HF is below the 1.45 safe threshold.",
+    hfHighRisk: "High risk: this position is close to liquidation.",
+    hfInvalid: "Invalid position: projected HF is below 1.00 and this action is blocked.",
+    healthFactorLabel: "Health Factor",
+    highRiskWarning: "High Risk Position Warning",
+    borrowing: "Borrowing",
+    withdrawing: "Withdrawing",
+    riskWarningBody: "this amount will drop your Health Factor to",
+    riskWarningTail: "Your position will be at elevated risk of immediate liquidation if market prices fluctuate.",
+    adjustAmount: "Adjust Amount (Recommended)",
+    proceedRisk: "I Understand the Risk, Proceed",
     minting: "Minting...",
     mintSuccess: "Successfully traded ETH for mUSDT!",
     adminMintSuccess: "Successfully minted 100,000 mUSDT for free!",
@@ -64,6 +79,43 @@ const translations = {
     mintFailed: "Mint failed",
     adminMintFailed: "Admin mint failed",
     oracleFailed: "Oracle update failed",
+    adminDashboard: "Admin Dashboard",
+    backToApp: "Back to app",
+    poolStatistics: "Lending Pool Statistics",
+    poolBalance: "Pool ETH balance",
+    totalDeposited: "Total ETH deposited",
+    totalDebt: "Total debt",
+    protocolFees: "Protocol fees",
+    reserveBuffer: "Reserve buffer",
+    totalBadDebt: "Total bad debt",
+    trackedBalance: "Tracked ETH balance",
+    sweepableExcess: "Sweepable excess ETH",
+    sweepExcess: "Sweep excess ETH",
+    sweepNoExcess: "No excess ETH to sweep.",
+    sweepSuccess: "Excess ETH swept to the pool owner.",
+    sweepHint: "ETH can be swept when the actual pool balance exceeds tracked deposits, reserves, fees, and debt accounting.",
+    botStatusActive: "Bot Status: Active (Polling every 10s)",
+    activeBorrowers: "Active Borrowers",
+    borrowerAddress: "Borrower Address",
+    debtAmount: "Debt Amount",
+    liquidationRisk: "Liquidation Risk",
+    lastEvaluated: "Last Evaluated",
+    safe: "Safe",
+    caution: "Caution",
+    highRisk: "High Risk",
+    liquidatable: "Liquidatable",
+    noActiveBorrowers: "No active borrowers found.",
+    copyAddress: "Copy address",
+    copied: "Copied",
+    secondsAgo: "seconds ago",
+    musdtEthBalance: "mUSDT ETH balance",
+    currentOraclePrice: "Current oracle price",
+    refreshStatistics: "Refresh statistics",
+    withdrawEthFromMusdt: "Withdraw ETH from mUSDT",
+    withdrawAmount: "Withdrawal amount",
+    withdrawSuccess: "ETH withdrawn from mUSDT contract.",
+    oracleTemporaryHint: "The temporary price is active for 2 minutes.",
+    musdtAvailableHint: "ETH available in the mUSDT contract.",
     installWallet: "Please install MetaMask to connect your wallet.",
     walletRejected: "Wallet request was rejected.",
     transactionFailed: "Transaction failed",
@@ -127,6 +179,21 @@ const translations = {
     close: "Đóng",
     amountToTrade: "Số lượng nhận",
     tradeHint: "Lượng ETH cần trả sẽ được tính theo giá oracle.",
+    currentTradingValue: "Giá trị giao dịch hiện tại",
+    oracleUnavailable: "Không thể lấy giá trị giao dịch",
+    currentHF: "HF hiện tại",
+    projectedHF: "HF dự kiến",
+    hfWarningBelow: "HF dự kiến thấp hơn ngưỡng an toàn 1,45.",
+    hfHighRisk: "Rủi ro cao: vị thế này gần bị thanh lý.",
+    hfInvalid: "Vị thế không hợp lệ: HF dự kiến dưới 1,00 và thao tác bị chặn.",
+    healthFactorLabel: "Chỉ số An toàn (HF)",
+    highRiskWarning: "Cảnh báo Vị thế Rủi ro cao",
+    borrowing: "Vay",
+    withdrawing: "Rút",
+    riskWarningBody: "số lượng này sẽ làm HF của bạn giảm xuống",
+    riskWarningTail: "Vị thế của bạn có nguy cơ bị thanh lý ngay lập tức nếu giá thị trường biến động.",
+    adjustAmount: "Điều chỉnh số lượng (Khuyến nghị)",
+    proceedRisk: "Tôi hiểu rủi ro, tiếp tục",
     minting: "Đang xử lý...",
     mintSuccess: "Đã đổi ETH lấy mUSDT thành công!",
     adminMintSuccess: "Đã đúc miễn phí thành công 100.000 mUSDT!",
@@ -134,6 +201,43 @@ const translations = {
     mintFailed: "Đúc token thất bại",
     adminMintFailed: "Đúc miễn phí thất bại",
     oracleFailed: "Cập nhật oracle thất bại",
+    adminDashboard: "Trang quản trị",
+    backToApp: "Quay lại ứng dụng",
+    poolStatistics: "Thống kê Lending Pool",
+    poolBalance: "Số dư ETH trong pool",
+    totalDeposited: "Tổng ETH đã gửi",
+    totalDebt: "Tổng dư nợ",
+    protocolFees: "Phí giao thức",
+    reserveBuffer: "Quỹ dự phòng",
+    totalBadDebt: "Tổng nợ xấu",
+    trackedBalance: "Số dư ETH được theo dõi",
+    sweepableExcess: "ETH dư có thể thu hồi",
+    sweepExcess: "Thu hồi ETH dư",
+    sweepNoExcess: "Không có ETH dư để thu hồi.",
+    sweepSuccess: "Đã thu hồi ETH dư về chủ sở hữu pool.",
+    sweepHint: "Có thể thu hồi ETH khi số dư thực tế của pool vượt quá phần tiền gửi, quỹ dự phòng, phí và dư nợ được theo dõi.",
+    botStatusActive: "Trạng thái Bot: Đang hoạt động (thăm dò mỗi 10 giây)",
+    activeBorrowers: "Người vay đang hoạt động",
+    borrowerAddress: "Địa chỉ người vay",
+    debtAmount: "Số dư nợ",
+    liquidationRisk: "Rủi ro thanh lý",
+    lastEvaluated: "Đánh giá gần nhất",
+    safe: "An toàn",
+    caution: "Cẩn trọng",
+    highRisk: "Rủi ro cao",
+    liquidatable: "Có thể thanh lý",
+    noActiveBorrowers: "Không tìm thấy người vay đang hoạt động.",
+    copyAddress: "Sao chép địa chỉ",
+    copied: "Đã sao chép",
+    secondsAgo: "giây trước",
+    musdtEthBalance: "Số dư ETH của mUSDT",
+    currentOraclePrice: "Giá oracle hiện tại",
+    refreshStatistics: "Làm mới thống kê",
+    withdrawEthFromMusdt: "Rút ETH từ mUSDT",
+    withdrawAmount: "Số lượng rút",
+    withdrawSuccess: "Đã rút ETH từ hợp đồng mUSDT.",
+    oracleTemporaryHint: "Giá tạm thời có hiệu lực trong 2 phút.",
+    musdtAvailableHint: "ETH khả dụng trong hợp đồng mUSDT.",
     installWallet: "Vui lòng cài đặt MetaMask để kết nối ví.",
     walletRejected: "Yêu cầu từ ví đã bị từ chối.",
     transactionFailed: "Giao dịch thất bại",
@@ -150,25 +254,36 @@ const LENDING_POOL_ADDRESS = import.meta.env.VITE_LENDING_POOL_ADDRESS;
 const MOCK_USDT_ADDRESS = import.meta.env.VITE_MOCK_USDT_ADDRESS;
 const ORACLE_ADDRESS = import.meta.env.VITE_ORACLE_ADDRESS;
 const USDT_DECIMALS = 18;
+const LIQUIDATION_THRESHOLD = 0.8;
+const MAX_HEALTH_FACTOR = 1.5;
+const HEALTH_FACTOR_WARNING_THRESHOLD = 1.45;
+const FRONTEND_SAFETY_NUMERATOR = 999n;
+const FRONTEND_SAFETY_DENOMINATOR = 1000n;
 const SEPOLIA_RPC_URL = import.meta.env.VITE_SEPOLIA_RPC_URL
   || "https://ethereum-sepolia-rpc.publicnode.com";
+const BOT_START_BLOCK = Number(import.meta.env.VITE_BOT_START_BLOCK || 0);
 const POOL_ABI = [
   ...LendingPoolABI.abi,
   "function priceOracle() view returns (address)",
   "function getBorrowRatePerSec() view returns (uint256)",
   "function totalDebt() view returns (uint256)",
+  "function getSweepableExcessETH() view returns (uint256 trackedBalance,uint256 excess)",
+  "function sweepExcessETH()",
 ];
 const MOCK_USDT_ABI = [
   "function balanceOf(address account) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
   "function mint(uint256 amount) payable",
   "function mintFree(address recipient, uint256 amount)",
   "function quoteMint(uint256 amount) view returns (uint256)",
   "function owner() view returns (address)",
+  "function withdrawETH(uint256 amount)",
 ];
 const ORACLE_ABI = [
   "function owner() view returns (address)",
   "function decimals() view returns (uint8)",
+  "function latestRoundData() view returns (uint80,int256,uint256,uint256,uint80)",
   "function setTemporaryPrice(int256 newPrice)",
 ];
 
@@ -190,6 +305,13 @@ function getErrorMessage(error) {
     || error?.error?.message
     || error?.message
     || "Transaction failed";
+}
+
+function calculateHealthFactorPreview(collateralEth, debtEth, collateralDeltaEth = 0, debtDeltaEth = 0) {
+  const projectedCollateral = Math.max(0, Number(collateralEth) + Number(collateralDeltaEth));
+  const projectedDebt = Math.max(0, Number(debtEth) + Number(debtDeltaEth));
+  if (projectedDebt === 0) return Infinity;
+  return (projectedCollateral * LIQUIDATION_THRESHOLD) / projectedDebt;
 }
 
 async function assertContractDeployment(provider, address, label) {
@@ -231,13 +353,16 @@ export default function App() {
   const [ethBalance, setEthBalance] = useState("0");
   const [usdtBalance, setUsdtBalance] = useState("0");
   const [poolLiquidity, setPoolLiquidity] = useState("0");
+  const [rawPoolLiquidityWei, setRawPoolLiquidityWei] = useState(0n);
   const [totalDebtEth, setTotalDebtEth] = useState("0");
   const [lenderSupplied, setLenderSupplied] = useState("0");
   const [userCollateral, setUserCollateral] = useState("0");
+  const [userCollateralEth, setUserCollateralEth] = useState("0");
+  const [collateralEthPerToken, setCollateralEthPerToken] = useState("0");
   const [userBorrowed, setUserBorrowed] = useState("0");
   const [maxBorrowETH, setMaxBorrowETH] = useState("0");
+  const [rawMaxBorrowWei, setRawMaxBorrowWei] = useState(0n);
   const [healthFactor, setHealthFactor] = useState("∞");
-  const [withdrawableCollateral, setWithdrawableCollateral] = useState("0");
   const [liveDebt, setLiveDebt] = useState("0");
   const [liveDebtWei, setLiveDebtWei] = useState(0n);
   const [onChainTimestamp, setOnChainTimestamp] = useState(0);
@@ -257,12 +382,35 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [minting, setMinting] = useState(false);
   const [tradeAmount, setTradeAmount] = useState("");
+  const [tradeRate, setTradeRate] = useState(null);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showOracleModal, setShowOracleModal] = useState(false);
   const [oraclePrice, setOraclePrice] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [riskConfirmation, setRiskConfirmation] = useState(null);
+  const [showAdminPage, setShowAdminPage] = useState(false);
+  const [adminWithdrawAmount, setAdminWithdrawAmount] = useState("");
+  const [lastBotHeartbeat, setLastBotHeartbeat] = useState(null);
+  const [monitoredBorrowers, setMonitoredBorrowers] = useState([]);
+  const [copiedBorrower, setCopiedBorrower] = useState("");
+  const [heartbeatPulse, setHeartbeatPulse] = useState(0);
+  const [heartbeatClock, setHeartbeatClock] = useState(null);
+  const borrowerScanBlock = useRef(null);
+  const borrowerAddresses = useRef(new Set());
+  const [adminStats, setAdminStats] = useState({
+    poolBalance: "0",
+    totalDeposited: "0",
+    totalDebt: "0",
+    protocolFees: "0",
+    reserveBuffer: "0",
+    totalBadDebt: "0",
+    trackedBalance: "0",
+    sweepableExcess: "0",
+    musdtEthBalance: "0",
+    oraclePrice: "0",
+  });
   const t = (key) => translations[language][key] || translations.en[key] || key;
   const format = (value, decimals = 4) => formatAmount(value, decimals, language);
   const localizedError = (message) => {
@@ -300,6 +448,142 @@ export default function App() {
     return new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
   };
 
+  const refreshAdminStats = async (provider = getReadProvider()) => {
+    try {
+      const poolContract = new ethers.Contract(LENDING_POOL_ADDRESS, POOL_ABI, provider);
+      const oracleAddress = ORACLE_ADDRESS || await poolContract.priceOracle();
+      const oracle = new ethers.Contract(oracleAddress, ORACLE_ABI, provider);
+      const [poolBalance, totalDeposited, totalDebt, protocolFees, reserveBuffer, totalBadDebt, sweepData, musdtEthBalance, decimals, roundData] = await Promise.all([
+        provider.getBalance(LENDING_POOL_ADDRESS),
+        poolContract.totalEthDeposited(),
+        poolContract.totalDebt(),
+        poolContract.protocolFees(),
+        poolContract.reserveBuffer(),
+        poolContract.totalBadDebt(),
+        poolContract.getSweepableExcessETH(),
+        provider.getBalance(MOCK_USDT_ADDRESS),
+        oracle.decimals(),
+        oracle.latestRoundData(),
+      ]);
+      setAdminStats({
+        poolBalance: ethers.formatEther(poolBalance),
+        totalDeposited: ethers.formatEther(totalDeposited),
+        totalDebt: ethers.formatEther(totalDebt),
+        protocolFees: ethers.formatEther(protocolFees),
+        reserveBuffer: ethers.formatEther(reserveBuffer),
+        totalBadDebt: ethers.formatEther(totalBadDebt),
+        trackedBalance: ethers.formatEther(sweepData.trackedBalance ?? sweepData[0]),
+        sweepableExcess: ethers.formatEther(sweepData.excess ?? sweepData[1]),
+        musdtEthBalance: ethers.formatEther(musdtEthBalance),
+        oraclePrice: ethers.formatUnits(roundData[1], Number(decimals)),
+      });
+    } catch (err) {
+      console.error("Admin statistics refresh error:", err);
+      setError("Unable to refresh admin statistics.");
+    }
+  };
+
+  const handleSweepExcess = async () => {
+    if (!isAdmin) return;
+    setLoading(true);
+    setError("");
+    try {
+      const provider = getProvider();
+      const signer = await provider.getSigner();
+      const pool = new ethers.Contract(LENDING_POOL_ADDRESS, POOL_ABI, signer);
+      const transaction = await pool.sweepExcessETH();
+      await transaction.wait();
+      await refreshAdminStats(provider);
+      setSuccess(t("sweepSuccess"));
+    } catch (err) {
+      setError(`${t("transactionFailed")}: ${getErrorMessage(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshTradeRate = async (provider = getReadProvider()) => {
+    try {
+      const poolContract = new ethers.Contract(LENDING_POOL_ADDRESS, POOL_ABI, provider);
+      const oracleAddress = ORACLE_ADDRESS || await poolContract.priceOracle();
+      const oracle = new ethers.Contract(oracleAddress, ORACLE_ABI, provider);
+      const [rawDecimals, roundData] = await Promise.all([oracle.decimals(), oracle.latestRoundData()]);
+      const answer = roundData[1];
+      if (answer <= 0n) throw new Error("Oracle returned a non-positive price.");
+      setTradeRate((answer * 10n ** 18n) / 10n ** BigInt(rawDecimals));
+    } catch (err) {
+      console.error("Trade rate refresh error:", err);
+      setTradeRate(null);
+    }
+  };
+
+  const refreshBorrowerMonitoring = async (provider = getReadProvider()) => {
+    if (!isAdmin) return;
+    try {
+      const poolContract = new ethers.Contract(LENDING_POOL_ADDRESS, POOL_ABI, provider);
+      const latestBlock = await provider.getBlockNumber();
+      const fromBlock = borrowerScanBlock.current === null
+        ? (Number.isInteger(BOT_START_BLOCK) && BOT_START_BLOCK >= 0 ? BOT_START_BLOCK : latestBlock)
+        : borrowerScanBlock.current + 1;
+      const borrowers = new Set(borrowerAddresses.current);
+
+      if (fromBlock <= latestBlock) {
+        const events = await poolContract.queryFilter(poolContract.filters.Borrow(), fromBlock, latestBlock);
+        for (const event of events) {
+          const borrower = "args" in event ? event.args?.[0] : undefined;
+          if (typeof borrower === "string" && ethers.isAddress(borrower)) {
+            borrowers.add(ethers.getAddress(borrower));
+          }
+        }
+        borrowerScanBlock.current = latestBlock;
+      }
+
+      borrowerAddresses.current = borrowers;
+      const oracleAddress = ORACLE_ADDRESS || await poolContract.priceOracle();
+      const oracle = new ethers.Contract(oracleAddress, ORACLE_ABI, provider);
+      const [oracleDecimals, roundData] = await Promise.all([oracle.decimals(), oracle.latestRoundData()]);
+      const oraclePrice = BigInt(roundData[1]);
+      const evaluatedAt = Date.now();
+      const rows = await Promise.all([...borrowers].map(async (address) => {
+        const data = await poolContract.getUserAccountData(address);
+        const debtWei = BigInt(data.totalDebtETH ?? data[1]);
+        if (debtWei === 0n) return null;
+        const collateralEthWei = BigInt(data.totalCollateralETH ?? data[0]);
+        const healthFactorWei = BigInt(data.healthFactor ?? data[3]);
+        const collateralUsdWei = (collateralEthWei * oraclePrice) / 10n ** BigInt(oracleDecimals);
+        const healthFactor = healthFactorWei > 10n ** 30n ? Infinity : Number(ethers.formatEther(healthFactorWei));
+        return {
+          address,
+          healthFactor,
+          debtETH: ethers.formatEther(debtWei),
+          collateralUSD: ethers.formatUnits(collateralUsdWei, 18),
+          status: healthFactor < 1 ? "liquidatable" : healthFactor < 1.1 ? "highRisk" : healthFactor < 1.51 ? "caution" : "safe",
+          evaluatedAt,
+        };
+      }));
+
+      setMonitoredBorrowers(rows.filter(Boolean));
+      setLastBotHeartbeat(evaluatedAt);
+      setHeartbeatPulse((pulse) => pulse + 1);
+    } catch (err) {
+      console.error("Borrower monitoring refresh error:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!showAdminPage || !isAdmin) return undefined;
+    borrowerScanBlock.current = null;
+    borrowerAddresses.current = new Set();
+    const refresh = () => void refreshBorrowerMonitoring();
+    refresh();
+    const pollingInterval = setInterval(refresh, 10_000);
+    const clockInterval = setInterval(() => setHeartbeatClock(Date.now()), 1000);
+    return () => {
+      clearInterval(pollingInterval);
+      clearInterval(clockInterval);
+    };
+  }, [showAdminPage, isAdmin]);
+
   const connectWallet = async () => {
     if (!window.ethereum) {
       setError("Please install MetaMask to connect your wallet.");
@@ -326,6 +610,7 @@ export default function App() {
       ]);
 
       setPoolLiquidity(ethers.formatEther(poolEthBalance));
+      setRawPoolLiquidityWei(poolEthBalance);
       setTotalDebtEth(ethers.formatEther(totalDebt));
       setBorrowRatePerSec(borrowRate);
 
@@ -339,8 +624,8 @@ export default function App() {
         walletUsdtBalance,
         collateral,
         userData,
+        oneTokenCollateralEth,
         supplied,
-        withdrawable,
         principal,
         lastTimestamp,
       ] = await Promise.all([
@@ -348,8 +633,8 @@ export default function App() {
         usdtContract.balanceOf(userAddress),
         poolContract.userCollateral(userAddress),
         poolContract.getUserAccountData(userAddress),
+        poolContract.getCollateralETHValue(10n ** 18n),
         poolContract.getLenderBalance(userAddress),
-        poolContract.getWithdrawableCollateral(userAddress),
         poolContract.principalBorrowed(userAddress),
         poolContract.lastBorrowerUpdateTimestamp(userAddress),
       ]);
@@ -358,11 +643,13 @@ export default function App() {
       setUsdtBalance(ethers.formatUnits(walletUsdtBalance, 18));
       setUserCollateral(ethers.formatUnits(collateral, 18));
       setUserBorrowed(ethers.formatEther(userData.totalDebtETH ?? userData[1]));
+      setUserCollateralEth(ethers.formatEther(userData.totalCollateralETH ?? userData[0]));
+      setCollateralEthPerToken(ethers.formatEther(oneTokenCollateralEth));
+      setRawMaxBorrowWei(userData.maxBorrowETH ?? userData[2]);
       setMaxBorrowETH(ethers.formatEther(userData.maxBorrowETH ?? userData[2]));
       const factor = userData.healthFactor ?? userData[3];
       setHealthFactor(factor > 10n ** 30n ? "∞" : ethers.formatEther(factor));
       setLenderSupplied(ethers.formatEther(supplied));
-      setWithdrawableCollateral(ethers.formatUnits(withdrawable, 18));
       setRawPrincipal(principal);
       setOnChainTimestamp(Number(lastTimestamp));
     } catch (err) {
@@ -377,6 +664,12 @@ export default function App() {
     const interval = setInterval(refresh, 15000);
     return () => clearInterval(interval);
   }, [account]);
+
+  useEffect(() => {
+    refreshTradeRate();
+    const interval = setInterval(() => refreshTradeRate(), 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!account || rawPrincipal === 0n || onChainTimestamp === 0) {
@@ -467,9 +760,29 @@ export default function App() {
       setOraclePrice("");
       setShowOracleModal(false);
       await fetchData(account, provider);
+      await refreshTradeRate(provider);
       setSuccess(t("oracleSuccess"));
     } catch (err) {
       setError(`${t("oracleFailed")}: ${getErrorMessage(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdminWithdraw = async () => {
+    if (!isAdmin || !adminWithdrawAmount || Number(adminWithdrawAmount) <= 0) return;
+    setLoading(true);
+    setError("");
+    try {
+      const provider = getProvider();
+      const signer = await provider.getSigner();
+      const token = new ethers.Contract(MOCK_USDT_ADDRESS, MOCK_USDT_ABI, signer);
+      await (await token.withdrawETH(ethers.parseEther(adminWithdrawAmount))).wait();
+      setAdminWithdrawAmount("");
+      await refreshAdminStats(provider);
+      setSuccess(t("withdrawSuccess"));
+    } catch (err) {
+      setError(`${t("withdrawFailed")}: ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -515,9 +828,14 @@ export default function App() {
     if (!collateralAmount) return;
     return runTransaction(async (signer) => {
       const token = new ethers.Contract(MOCK_USDT_ADDRESS, MOCK_USDT_ABI, signer);
-      await (await token.approve(LENDING_POOL_ADDRESS, ethers.parseUnits(collateralAmount, 18))).wait();
+      const amount = ethers.parseUnits(collateralAmount, 18);
+      const ownerAddress = await signer.getAddress();
+      const currentAllowance = await token.allowance(ownerAddress, LENDING_POOL_ADDRESS);
+      if (currentAllowance < amount) {
+        await (await token.approve(LENDING_POOL_ADDRESS, ethers.MaxUint256)).wait();
+      }
       return new ethers.Contract(LENDING_POOL_ADDRESS, POOL_ABI, signer)
-        .depositCollateral(ethers.parseUnits(collateralAmount, 18));
+        .depositCollateral(amount);
     }, "Deposit collateral failed", () => setCollateralAmount(""));
   };
 
@@ -553,11 +871,88 @@ export default function App() {
     }, "Repay failed", () => setRepayAmount(""));
   };
 
+  const currentHealthFactorNumber = Number(healthFactor);
+  const currentHealthFactorValue = Number.isFinite(currentHealthFactorNumber)
+    ? currentHealthFactorNumber
+    : Infinity;
+  const collateralEthPerTokenValue = Number(collateralEthPerToken) > 0
+    ? Number(collateralEthPerToken)
+    : Number(userCollateral) > 0 ? Number(userCollateralEth) / Number(userCollateral) : 0;
+  const previewDelta = (action, amount) => {
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return currentHealthFactorValue;
+    }
+    if (action === "depositCollateral") {
+      return calculateHealthFactorPreview(userCollateralEth, liveDebt, numericAmount * collateralEthPerTokenValue, 0);
+    }
+    if (action === "withdrawCollateral") {
+      return calculateHealthFactorPreview(userCollateralEth, liveDebt, -numericAmount * collateralEthPerTokenValue, 0);
+    }
+    if (action === "borrow") {
+      return calculateHealthFactorPreview(userCollateralEth, liveDebt, 0, numericAmount);
+    }
+    if (action === "repay") {
+      return calculateHealthFactorPreview(userCollateralEth, liveDebt, 0, -Math.min(numericAmount, Number(liveDebt)));
+    }
+    return currentHealthFactorValue;
+  };
+  const projectedHealthFactor = previewDelta(borrowAction, {
+    depositCollateral: collateralAmount,
+    withdrawCollateral: withdrawCollateralAmount,
+    borrow: borrowAmount,
+    repay: repayAmount,
+  }[borrowAction]);
+  const healthFactorTone = projectedHealthFactor < 1
+    ? "invalid"
+    : projectedHealthFactor < 1.1
+      ? "high-risk"
+      : projectedHealthFactor < HEALTH_FACTOR_WARNING_THRESHOLD
+        ? "moderate-risk"
+        : "safe";
+  const healthFactorLabel = Number.isFinite(projectedHealthFactor)
+    ? projectedHealthFactor.toFixed(2)
+    : "∞";
+  const riskAction = {
+    withdrawCollateral: handleWithdrawCollateral,
+    borrow: handleBorrow,
+  }[borrowAction];
+  const executeRiskAwareAction = () => {
+    if (riskAction && projectedHealthFactor < HEALTH_FACTOR_WARNING_THRESHOLD && projectedHealthFactor >= 1) {
+      setRiskConfirmation({ action: riskAction, healthFactor: healthFactorLabel });
+      return;
+    }
+    return riskAction?.();
+  };
+  const maxBorrowAtSafeHealth = Math.max(
+    0,
+    (Number(userCollateralEth) * LIQUIDATION_THRESHOLD / MAX_HEALTH_FACTOR) - Number(liveDebt),
+  );
+  const maxWithdrawAtSafeHealth = Number(userCollateral) > 0 && Number(liveDebt) > 0
+    ? Math.max(
+      0,
+      (Number(userCollateral) - (Number(liveDebt) * MAX_HEALTH_FACTOR / LIQUIDATION_THRESHOLD) / collateralEthPerTokenValue),
+    )
+    : Number(userCollateral);
+  const maxWithdrawAtProtocolHealth = Number(userCollateral) > 0 && Number(liveDebt) > 0 && collateralEthPerTokenValue > 0
+    ? Math.max(
+      0,
+      Number(userCollateral) - (Number(liveDebt) / LIQUIDATION_THRESHOLD) / collateralEthPerTokenValue,
+    )
+    : Number(userCollateral);
+
   const busy = loading || !account;
   const totalDebtEthValue = Number(totalDebtEth);
   const poolBalanceEth = Number(poolLiquidity);
   const liquiditySafetyLimit = Math.max(0, poolBalanceEth * 0.999);
-  const liquiditySafeBorrowETH = Math.min(Number(maxBorrowETH), liquiditySafetyLimit);
+  const healthSafeBorrowWei = (rawMaxBorrowWei * FRONTEND_SAFETY_NUMERATOR)
+    / FRONTEND_SAFETY_DENOMINATOR;
+  const liquiditySafePoolWei = (rawPoolLiquidityWei * FRONTEND_SAFETY_NUMERATOR)
+    / FRONTEND_SAFETY_DENOMINATOR;
+  const liquiditySafeBorrowWei = healthSafeBorrowWei < liquiditySafePoolWei
+    ? healthSafeBorrowWei
+    : liquiditySafePoolWei;
+  const liquiditySafeBorrowETH = Number(ethers.formatEther(liquiditySafeBorrowWei));
   const liquiditySafeWithdrawETH = Math.min(Number(lenderSupplied), liquiditySafetyLimit);
   const totalAssets = totalDebtEthValue + poolBalanceEth;
   const utilization = totalAssets > 0
@@ -574,17 +969,37 @@ export default function App() {
   const healthClass = healthFactor === "∞" || Number(healthFactor) >= 1.5
     ? "healthy"
     : Number(healthFactor) >= 1 ? "warning" : "danger";
+  const borrowerStatusLabel = (status) => t(status);
+  const borrowerHealthLabel = (value) => Number.isFinite(value) ? value.toFixed(2) : "∞";
+  const borrowerDebtLabel = (value) => {
+    const amount = Number(value);
+    return amount > 0 && amount < 0.0001 ? amount.toFixed(6) : amount.toFixed(6);
+  };
+  const borrowerTimeLabel = (timestamp) => {
+    const elapsedAt = heartbeatClock ?? lastBotHeartbeat ?? timestamp;
+    const seconds = Math.max(0, Math.floor((elapsedAt - timestamp) / 1000));
+    return `${seconds} ${t("secondsAgo")}`;
+  };
+  const copyBorrowerAddress = async (address) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedBorrower(address);
+      setTimeout(() => setCopiedBorrower(""), 1500);
+    } catch (err) {
+      console.error("Unable to copy borrower address:", err);
+    }
+  };
 
   return (
     <main className="app-shell">
       <header className="topbar">
         <div className="brand">
-          {isAdmin && <button className="oracle-button" onClick={() => setShowOracleModal(true)} title={t("oracle")} aria-label={t("oracle")}>⚙</button>}
+          {isAdmin && <button className="oracle-button" onClick={() => { setShowAdminPage(true); void refreshAdminStats(); }} title={t("adminDashboard")} aria-label={t("adminDashboard")}>⚙</button>}
           <span className="brand-mark">P</span><span>PeerPool Lending</span>
         </div>
         {account && (
           <div className="header-faucet">
-            <button className="faucet-button" onClick={() => setShowTradeModal(true)} disabled={minting || loading}>
+            <button className="faucet-button" onClick={() => { setShowTradeModal(true); void refreshTradeRate(); }} disabled={minting || loading}>
               {minting ? <span className="spinner" aria-hidden="true" /> : <span className="faucet-icon" aria-hidden="true">✦</span>}
               {minting ? t("minting") : t("trade")}
             </button>
@@ -613,18 +1028,14 @@ export default function App() {
         )}
       </header>
 
-      {loading && (
-        <section className="hero">
-          <span className="status-pill">{t("transactionPending")}</span>
-        </section>
-      )}
-
-      {(error || success) && (
+      {(loading || error || success) && (
         <div className="toast-container">
-          <div className={success ? "success-toast" : "error-toast"} role="alert">
-            <span className={success ? "toast-icon success-icon" : "toast-icon"} aria-hidden="true">{success ? "✓" : "!"}</span>
-            <span>{success || localizedError(error)}</span>
-            <button className="toast-close" onClick={() => { setError(""); setSuccess(""); }} aria-label="Close notification">×</button>
+          <div className={success ? "success-toast" : error ? "error-toast" : "pending-toast"} role={loading && !error && !success ? "status" : "alert"}>
+            <span className={success ? "toast-icon success-icon" : error ? "toast-icon" : "toast-icon pending-icon"} aria-hidden="true">{success ? "✓" : error ? "!" : "·"}</span>
+            <span>{success || localizedError(error) || t("transactionPending")}</span>
+            {(error || success) && (
+              <button className="toast-close" onClick={() => { setError(""); setSuccess(""); }} aria-label="Close notification">×</button>
+            )}
           </div>
         </div>
       )}
@@ -780,24 +1191,44 @@ export default function App() {
                   }[borrowAction]}
                   onMax={() => {
                     if (borrowAction === "depositCollateral") setCollateralAmount(usdtBalance);
-                    if (borrowAction === "withdrawCollateral") setWithdrawCollateralAmount(withdrawableCollateral);
-                    if (borrowAction === "borrow") setBorrowAmount(String(liquiditySafeBorrowETH));
+                    if (borrowAction === "withdrawCollateral") setWithdrawCollateralAmount(String(maxWithdrawAtSafeHealth));
+                    if (borrowAction === "borrow") setBorrowAmount(String(Math.min(maxBorrowAtSafeHealth, liquiditySafeBorrowETH)));
                     if (borrowAction === "repay") setRepayAmount(liveDebt);
                   }}
                   unit={borrowAction.includes("Collateral") ? "mUSDT" : "ETH"}
                 />
                 <div className="helper-text">
-                  {borrowAction === "withdrawCollateral" && `${t("safeMaxWithdrawable")}: ${format(withdrawableCollateral)} mUSDT`}
+                  {borrowAction === "withdrawCollateral" && `${t("safeMaxWithdrawable")}: ${format(maxWithdrawAtSafeHealth)} mUSDT`}
                   {borrowAction === "borrow" && `${t("maxBorrowAllowed")}: ${format(liquiditySafeBorrowETH)} ETH`}
                   {borrowAction === "repay" && `${t("currentDebt")}: ${format(liveDebt)} ETH`}
                   {borrowAction === "depositCollateral" && `${t("available")}: ${format(usdtBalance)} mUSDT`}
                 </div>
+                <div className={`health-preview ${healthFactorTone}`}>
+                  <div>
+                    <span>{t("currentHF")}</span>
+                    <strong>{Number.isFinite(currentHealthFactorValue) ? currentHealthFactorValue.toFixed(2) : "∞"}</strong>
+                  </div>
+                  <span className="health-preview-arrow">→</span>
+                  <div>
+                    <span>{t("projectedHF")}</span>
+                    <strong>{healthFactorLabel}</strong>
+                  </div>
+                </div>
+                {healthFactorTone === "moderate-risk" && (
+                  <div className="health-notice moderate">{t("hfWarningBelow")}</div>
+                )}
+                {healthFactorTone === "high-risk" && (
+                  <div className="health-notice high">{t("hfHighRisk")}</div>
+                )}
+                {healthFactorTone === "invalid" && (
+                  <div className="health-notice invalid">{t("hfInvalid")}</div>
+                )}
                 <button
                   className="primary-button full"
                   onClick={{
                     depositCollateral: handleDepositCollateral,
-                    withdrawCollateral: handleWithdrawCollateral,
-                    borrow: handleBorrow,
+                    withdrawCollateral: executeRiskAwareAction,
+                    borrow: executeRiskAwareAction,
                     repay: handleRepay,
                   }[borrowAction]}
                   disabled={
@@ -815,10 +1246,11 @@ export default function App() {
                       repay: repayAmount,
                     }[borrowAction]) > Number({
                       depositCollateral: usdtBalance,
-                      withdrawCollateral: withdrawableCollateral,
+                      withdrawCollateral: maxWithdrawAtProtocolHealth,
                       borrow: liquiditySafeBorrowETH,
                       repay: liveDebt,
                     }[borrowAction])
+                    || ((borrowAction === "withdrawCollateral" || borrowAction === "borrow") && projectedHealthFactor < 1)
                   }
                 >
                   {`${t("confirm")} ${{
@@ -840,12 +1272,163 @@ export default function App() {
         </button>
       )}
 
+      {riskConfirmation && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setRiskConfirmation(null)}>
+          <section className="modal-card risk-modal" role="dialog" aria-modal="true" aria-labelledby="risk-title" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-heading">
+              <div><span className="eyebrow">{t("healthFactorLabel")}</span><h2 id="risk-title">{t("highRiskWarning")}</h2></div>
+              <button className="modal-close" onClick={() => setRiskConfirmation(null)} aria-label={t("close")}>×</button>
+            </div>
+            <p>
+              {t(borrowAction === "borrow" ? "borrowing" : "withdrawing")} {t("riskWarningBody")} <strong>{riskConfirmation.healthFactor}</strong>. {t("riskWarningTail")}
+            </p>
+            <div className="risk-modal-actions">
+              <button className="secondary-button" onClick={() => setRiskConfirmation(null)}>{t("adjustAmount")}</button>
+              <button
+                className="danger-button"
+                onClick={() => {
+                  const action = riskConfirmation.action;
+                  setRiskConfirmation(null);
+                  return action();
+                }}
+              >
+                {t("proceedRisk")}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showAdminPage && isAdmin && (
+        <div className="admin-page">
+          <div className="admin-page-header">
+            <div>
+              <span className="eyebrow">{t("adminDashboard")}</span>
+              <h1>{t("poolStatistics")}</h1>
+            </div>
+            <button className="secondary-button" onClick={() => setShowAdminPage(false)}>{t("backToApp")}</button>
+          </div>
+
+          <section className="admin-monitor-card">
+            <div className="admin-monitor-header">
+              <div>
+                <span className="eyebrow">{t("activeBorrowers")}</span>
+                <h2>{t("activeBorrowers")}</h2>
+              </div>
+              <div className="bot-status-badge">
+                <span className="bot-status-dot" key={heartbeatPulse} title={lastBotHeartbeat ? new Date(lastBotHeartbeat).toLocaleTimeString() : undefined} />
+                {t("botStatusActive")}
+              </div>
+            </div>
+            <div className="borrower-table-wrap">
+              <table className="borrower-table">
+                <thead>
+                  <tr>
+                    <th>{t("borrowerAddress")}</th>
+                    <th>{t("debtAmount")}</th>
+                    <th>{t("healthFactor")}</th>
+                    <th>{t("liquidationRisk")}</th>
+                    <th>{t("lastEvaluated")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monitoredBorrowers.length === 0 ? (
+                    <tr><td className="empty-table" colSpan="5">{t("noActiveBorrowers")}</td></tr>
+                  ) : monitoredBorrowers.map((borrower) => (
+                    <tr key={borrower.address}>
+                      <td>
+                        <div className="borrower-address">
+                          <a href={`https://sepolia.etherscan.io/address/${borrower.address}`} target="_blank" rel="noreferrer">
+                            {borrower.address.slice(0, 6)}...{borrower.address.slice(-4)}
+                          </a>
+                          <button type="button" className="copy-address-button" onClick={() => void copyBorrowerAddress(borrower.address)} aria-label={t("copyAddress")}>
+                            {copiedBorrower === borrower.address ? t("copied") : "⧉"}
+                          </button>
+                        </div>
+                      </td>
+                      <td>{borrowerDebtLabel(borrower.debtETH)} ETH</td>
+                      <td>{borrowerHealthLabel(borrower.healthFactor)}</td>
+                      <td><span className={`risk-tag ${borrower.status}`}>{borrowerStatusLabel(borrower.status)}</span></td>
+                      <td><span className="evaluated-cell"><span className="evaluated-dot" />{borrowerTimeLabel(borrower.evaluatedAt)}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <div className="admin-stats-grid">
+            {[
+              ["poolBalance", adminStats.poolBalance],
+              ["totalDeposited", adminStats.totalDeposited],
+              ["totalDebt", adminStats.totalDebt],
+              ["protocolFees", adminStats.protocolFees],
+              ["reserveBuffer", adminStats.reserveBuffer],
+              ["totalBadDebt", adminStats.totalBadDebt],
+              ["trackedBalance", adminStats.trackedBalance],
+              ["sweepableExcess", adminStats.sweepableExcess],
+              ["musdtEthBalance", adminStats.musdtEthBalance],
+              ["currentOraclePrice", adminStats.oraclePrice],
+            ].map(([label, value]) => (
+              <article className="admin-stat-card" key={label}>
+                <span>{t(label)}</span>
+                <strong>{format(value)} {label === "currentOraclePrice" ? "USD" : "ETH"}</strong>
+              </article>
+            ))}
+          </div>
+
+          <div className="admin-actions-grid">
+            <section className="admin-action-card">
+              <div className="modal-heading">
+                <div><span className="eyebrow">{t("oracle")}</span><h2>{t("oraclePrice")}</h2></div>
+              </div>
+              <AmountField label={t("oraclePrice")} value={oraclePrice} onChange={setOraclePrice} unit="USD" />
+              <p className="helper-text">{t("oracleTemporaryHint")}</p>
+              <button className="primary-button full" onClick={handleSetOraclePrice} disabled={loading || Number(oraclePrice) <= 0}>
+                {loading ? t("transactionPending") : t("setPrice")}
+              </button>
+            </section>
+
+            <section className="admin-action-card">
+              <div className="modal-heading">
+                <div><span className="eyebrow">{t("withdrawEthFromMusdt")}</span><h2>{t("musdtEthBalance")}</h2></div>
+              </div>
+              <AmountField label={t("withdrawAmount")} value={adminWithdrawAmount} onChange={setAdminWithdrawAmount} unit="ETH" onMax={() => setAdminWithdrawAmount(adminStats.musdtEthBalance)} />
+              <p className="helper-text">{format(adminStats.musdtEthBalance)} ETH {t("musdtAvailableHint")}</p>
+              <button className="primary-button full" onClick={handleAdminWithdraw} disabled={loading || Number(adminWithdrawAmount) <= 0 || Number(adminWithdrawAmount) > Number(adminStats.musdtEthBalance)}>
+                {loading ? t("transactionPending") : t("withdraw")}
+              </button>
+            </section>
+
+            <section className="admin-action-card">
+              <div className="modal-heading">
+                <div><span className="eyebrow">{t("sweepExcess")}</span><h2>{t("sweepableExcess")}</h2></div>
+              </div>
+              <p className="helper-text">
+                {format(adminStats.sweepableExcess)} ETH {t("sweepHint")}
+              </p>
+              <button className="primary-button full" onClick={handleSweepExcess} disabled={loading || Number(adminStats.sweepableExcess) <= 0}>
+                {loading ? t("transactionPending") : t("sweepExcess")}
+              </button>
+            </section>
+          </div>
+
+          <button className="secondary-button" onClick={() => void refreshAdminStats()} disabled={loading}>
+            {t("refreshStatistics")}
+          </button>
+        </div>
+      )}
+
       {showTradeModal && (
         <div className="modal-backdrop" role="presentation" onClick={() => setShowTradeModal(false)}>
           <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="trade-title" onClick={(event) => event.stopPropagation()}>
             <div className="modal-heading">
               <div><span className="eyebrow">{t("trade")}</span><h2 id="trade-title">ETH → mUSDT</h2></div>
               <button className="modal-close" onClick={() => setShowTradeModal(false)} aria-label={t("close")}>×</button>
+            </div>
+            <div className="trade-rate">
+              <span>{t("currentTradingValue")}</span>
+              <strong>{tradeRate === null ? t("oracleUnavailable") : `1 ETH → ${format(ethers.formatUnits(tradeRate, 18))} mUSDT`}</strong>
             </div>
             <AmountField label={t("amountToTrade")} value={tradeAmount} onChange={setTradeAmount} unit="mUSDT" />
             <p className="helper-text">{t("tradeHint")}</p>
@@ -864,7 +1447,7 @@ export default function App() {
               <button className="modal-close" onClick={() => setShowOracleModal(false)} aria-label={t("close")}>×</button>
             </div>
             <AmountField label={t("oraclePrice")} value={oraclePrice} onChange={setOraclePrice} unit="USD" />
-            <p className="helper-text">The temporary price is active for 2 minutes.</p>
+            <p className="helper-text">{t("oracleTemporaryHint")}</p>
             <button className="primary-button full" onClick={handleSetOraclePrice} disabled={loading || Number(oraclePrice) <= 0}>
               {loading ? t("transactionPending") : t("setPrice")}
             </button>
