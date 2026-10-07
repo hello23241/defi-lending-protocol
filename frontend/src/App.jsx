@@ -314,6 +314,17 @@ function calculateHealthFactorPreview(collateralEth, debtEth, collateralDeltaEth
   return (projectedCollateral * LIQUIDATION_THRESHOLD) / projectedDebt;
 }
 
+function formatMaxAmount(value) {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+
+  // MAX values are calculated with floating point numbers for the preview.
+  // Truncate the result to 18 decimals so parseUnits always receives wei precision
+  // and never rounds a safe maximum above the protocol limit.
+  const [whole, fraction = ""] = value.toFixed(20).split(".");
+  const wei = BigInt(`${whole}${fraction.slice(0, 18).padEnd(18, "0")}`);
+  return ethers.formatEther(wei);
+}
+
 async function assertContractDeployment(provider, address, label) {
   if (!address) throw new Error(`${label} address is not configured.`);
   const code = await provider.getCode(address);
@@ -1191,8 +1202,8 @@ export default function App() {
                   }[borrowAction]}
                   onMax={() => {
                     if (borrowAction === "depositCollateral") setCollateralAmount(usdtBalance);
-                    if (borrowAction === "withdrawCollateral") setWithdrawCollateralAmount(String(maxWithdrawAtSafeHealth));
-                    if (borrowAction === "borrow") setBorrowAmount(String(Math.min(maxBorrowAtSafeHealth, liquiditySafeBorrowETH)));
+                    if (borrowAction === "withdrawCollateral") setWithdrawCollateralAmount(formatMaxAmount(maxWithdrawAtSafeHealth));
+                    if (borrowAction === "borrow") setBorrowAmount(formatMaxAmount(Math.min(maxBorrowAtSafeHealth, liquiditySafeBorrowETH)));
                     if (borrowAction === "repay") setRepayAmount(liveDebt);
                   }}
                   unit={borrowAction.includes("Collateral") ? "mUSDT" : "ETH"}

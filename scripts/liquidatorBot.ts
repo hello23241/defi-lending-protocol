@@ -4,13 +4,12 @@ import dotenv from "dotenv";
 import path from "node:path";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
-dotenv.config({ path: path.resolve(process.cwd(), "frontend", ".env") });
 
 const { ethers } = await network.create();
 const provider = ethers.provider;
 
 const POLL_INTERVAL_MS = 10_000;
-const LOG_BATCH_SIZE = 2_000;
+const LOG_BATCH_SIZE = 1000;
 const DEFAULT_LOG_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
 const HEALTH_FACTOR_ONE = 10n ** 18n;
 const HIGH_RISK_HEALTH_FACTOR = 95n * 10n ** 16n;
@@ -89,43 +88,42 @@ async function checkAndFundBot(signer: Signer) {
 }
 
 async function discoverBorrowers() {
-  const latestBlock = await provider.getBlockNumber();
+  // Dedicated public provider for log scanning to bypass Alchemy Free Tier 10-block cap
+  const publicRpcUrl = process.env.VITE_LOG_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
+  const logProvider = new ethers.JsonRpcProvider(publicRpcUrl);
+  const logPool = pool.connect(logProvider) as typeof pool;
+
+  const latestBlock = await logProvider.getBlockNumber();
   const configuredStartBlock = process.env.BOT_START_BLOCK;
   let startBlock = latestBlock;
+
   if (configuredStartBlock !== undefined) {
     const parsedStartBlock = Number(configuredStartBlock);
     if (Number.isInteger(parsedStartBlock) && parsedStartBlock >= 0) {
       startBlock = Math.min(parsedStartBlock, latestBlock);
     } else {
-      console.warn("[BOT WARNING] Invalid BOT_START_BLOCK; starting event discovery from the latest block.");
+      console.warn("[BOT WARNING] Invalid BOT_START_BLOCK; defaulting to latest block.");
     }
-  } else {
-    console.log("[BOT] BOT_START_BLOCK is not configured; relying on live events, polling, and seeded borrowers.");
   }
 
-  const logRpcUrl = process.env.VITE_LOG_RPC_URL ?? DEFAULT_LOG_RPC_URL;
-  const logProvider = new ethers.JsonRpcProvider(logRpcUrl);
-  const logPool = pool.connect(logProvider);
+  console.log(`[BOT] Scanning historical Borrow events from block ${startBlock} to ${latestBlock}...`);
 
-  try {
-    for (let fromBlock = startBlock; fromBlock <= latestBlock; fromBlock += LOG_BATCH_SIZE) {
-      const toBlock = Math.min(fromBlock + LOG_BATCH_SIZE - 1, latestBlock);
+  for (let fromBlock = startBlock; fromBlock <= latestBlock; fromBlock += LOG_BATCH_SIZE) {
+    const toBlock = Math.min(fromBlock + LOG_BATCH_SIZE - 1, latestBlock);
+    
+    try {
       const events = await logPool.queryFilter(logPool.filters.Borrow(), fromBlock, toBlock);
       for (const event of events) {
         const borrower = "args" in event ? event.args?.[0] : undefined;
         if (typeof borrower === "string") addBorrower(borrower);
       }
+    } catch (error) {
+      console.warn(`[BOT WARNING] Chunk query failed for blocks ${fromBlock}-${toBlock}. Continuing next batch...`);
     }
-    lastBorrowScanBlock = latestBlock;
-  } catch (error) {
-    console.warn(
-      `[BOT WARNING] Historical Borrow discovery unavailable through ${logRpcUrl}. ` +
-      "The bot will continue with live Borrow events. Set BOT_START_BLOCK to the deployment block " +
-      "or configure VITE_LOG_RPC_URL with an RPC that supports eth_getLogs.",
-      error,
-    );
   }
-  console.log(`[BOT] Tracking ${trackedBorrowers.size} active non-dust borrower(s).`);
+
+  lastBorrowScanBlock = latestBlock;
+  console.log(`[BOT] Successfully discovered and tracking ${trackedBorrowers.size} active non-dust borrower(s).`);
 }
 
 async function refreshBorrowers() {
