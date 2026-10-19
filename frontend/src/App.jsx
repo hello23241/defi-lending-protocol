@@ -94,7 +94,7 @@ const translations = {
     sweepNoExcess: "No excess ETH to sweep.",
     sweepSuccess: "Excess ETH swept to the pool owner.",
     sweepHint: "ETH can be swept when the actual pool balance exceeds tracked deposits, reserves, fees, and debt accounting.",
-    botStatusActive: "Bot Status: Active (Polling every 10s)",
+    botStatusActive: "Bot Status: Active",
     activeBorrowers: "Active Borrowers",
     borrowerAddress: "Borrower Address",
     debtAmount: "Debt Amount",
@@ -216,7 +216,7 @@ const translations = {
     sweepNoExcess: "Không có ETH dư để thu hồi.",
     sweepSuccess: "Đã thu hồi ETH dư về chủ sở hữu pool.",
     sweepHint: "Có thể thu hồi ETH khi số dư thực tế của pool vượt quá phần tiền gửi, quỹ dự phòng, phí và dư nợ được theo dõi.",
-    botStatusActive: "Trạng thái Bot: Đang hoạt động (thăm dò mỗi 10 giây)",
+    botStatusActive: "Trạng thái Bot: Đang hoạt động",
     activeBorrowers: "Người vay đang hoạt động",
     borrowerAddress: "Địa chỉ người vay",
     debtAmount: "Số dư nợ",
@@ -529,57 +529,83 @@ export default function App() {
   };
 
   const refreshBorrowerMonitoring = async (provider = getReadProvider()) => {
-    if (!isAdmin) return;
-    try {
-      const poolContract = new ethers.Contract(LENDING_POOL_ADDRESS, POOL_ABI, provider);
-      const latestBlock = await provider.getBlockNumber();
-      const fromBlock = borrowerScanBlock.current === null
-        ? (Number.isInteger(BOT_START_BLOCK) && BOT_START_BLOCK >= 0 ? BOT_START_BLOCK : latestBlock)
-        : borrowerScanBlock.current + 1;
-      const borrowers = new Set(borrowerAddresses.current);
+      if (!isAdmin) return;
+      try {
+        const poolContract = new ethers.Contract(LENDING_POOL_ADDRESS, POOL_ABI, provider);
+        const latestBlock = await provider.getBlockNumber();
+        const borrowers = new Set(borrowerAddresses.current);
 
-      if (fromBlock <= latestBlock) {
-        const events = await poolContract.queryFilter(poolContract.filters.Borrow(), fromBlock, latestBlock);
-        for (const event of events) {
-          const borrower = "args" in event ? event.args?.[0] : undefined;
-          if (typeof borrower === "string" && ethers.isAddress(borrower)) {
-            borrowers.add(ethers.getAddress(borrower));
+      if (borrowerScanBlock.current === null) {
+        try {
+          const res = await fetch("/api/borrowers");
+          const json = await res.json();
+          if (json.success && Array.isArray(json.borrowers)) {
+            for (const addr of json.borrowers) {
+              borrowers.add(ethers.getAddress(addr));
+            }
           }
+        } catch (e) {
+          console.warn("Lỗi fetch borrowers từ Vercel API:", e);
         }
         borrowerScanBlock.current = latestBlock;
+      } else {
+          // 2. Với các lần cập nhật sau (mỗi 10s), chỉ quét dải block nhỏ mới sinh ra
+          const fromBlock = borrowerScanBlock.current + 1;
+          if (fromBlock <= latestBlock) {
+            const events = await poolContract.queryFilter(poolContract.filters.Borrow(), fromBlock, latestBlock);
+            for (const event of events) {
+              const borrower = "args" in event ? event.args?.[0] : undefined;
+              if (typeof borrower === "string" && ethers.isAddress(borrower)) {
+                borrowers.add(ethers.getAddress(borrower));
+              }
+            }
+            borrowerScanBlock.current = latestBlock;
+          }
+        }
+
+        borrowerAddresses.current = borrowers;
+        if (borrowers.size === 0) {
+          setMonitoredBorrowers([]);
+          setLastBotHeartbeat(Date.now());
+          setHeartbeatPulse((pulse) => pulse + 1);
+          return;
+        }
+
+        const oracleAddress = ORACLE_ADDRESS || await poolContract.priceOracle();
+        const oracle = new ethers.Contract(oracleAddress, ORACLE_ABI, provider);
+        const [oracleDecimals, roundData] = await Promise.all([oracle.decimals(), oracle.latestRoundData()]);
+        const oraclePrice = BigInt(roundData[1]);
+        const evaluatedAt = Date.now();
+
+        const rows = await Promise.all([...borrowers].map(async (address) => {
+          try {
+            const data = await poolContract.getUserAccountData(address);
+            const debtWei = BigInt(data.totalDebtETH ?? data[1]);
+            if (debtWei === 0n) return null;
+            const collateralEthWei = BigInt(data.totalCollateralETH ?? data[0]);
+            const healthFactorWei = BigInt(data.healthFactor ?? data[3]);
+            const collateralUsdWei = (collateralEthWei * oraclePrice) / 10n ** BigInt(oracleDecimals);
+            const healthFactor = healthFactorWei > 10n ** 30n ? Infinity : Number(ethers.formatEther(healthFactorWei));
+            return {
+              address,
+              healthFactor,
+              debtETH: ethers.formatEther(debtWei),
+              collateralUSD: ethers.formatUnits(collateralUsdWei, 18),
+              status: healthFactor < 1 ? "liquidatable" : healthFactor < 1.1 ? "highRisk" : healthFactor < 1.45 ? "caution" : "safe",
+              evaluatedAt,
+            };
+          } catch {
+            return null;
+          }
+        }));
+
+        setMonitoredBorrowers(rows.filter(Boolean));
+        setLastBotHeartbeat(evaluatedAt);
+        setHeartbeatPulse((pulse) => pulse + 1);
+      } catch (err) {
+        console.error("Borrower monitoring refresh error:", err);
       }
-
-      borrowerAddresses.current = borrowers;
-      const oracleAddress = ORACLE_ADDRESS || await poolContract.priceOracle();
-      const oracle = new ethers.Contract(oracleAddress, ORACLE_ABI, provider);
-      const [oracleDecimals, roundData] = await Promise.all([oracle.decimals(), oracle.latestRoundData()]);
-      const oraclePrice = BigInt(roundData[1]);
-      const evaluatedAt = Date.now();
-      const rows = await Promise.all([...borrowers].map(async (address) => {
-        const data = await poolContract.getUserAccountData(address);
-        const debtWei = BigInt(data.totalDebtETH ?? data[1]);
-        if (debtWei === 0n) return null;
-        const collateralEthWei = BigInt(data.totalCollateralETH ?? data[0]);
-        const healthFactorWei = BigInt(data.healthFactor ?? data[3]);
-        const collateralUsdWei = (collateralEthWei * oraclePrice) / 10n ** BigInt(oracleDecimals);
-        const healthFactor = healthFactorWei > 10n ** 30n ? Infinity : Number(ethers.formatEther(healthFactorWei));
-        return {
-          address,
-          healthFactor,
-          debtETH: ethers.formatEther(debtWei),
-          collateralUSD: ethers.formatUnits(collateralUsdWei, 18),
-          status: healthFactor < 1 ? "liquidatable" : healthFactor < 1.1 ? "highRisk" : healthFactor < 1.51 ? "caution" : "safe",
-          evaluatedAt,
-        };
-      }));
-
-      setMonitoredBorrowers(rows.filter(Boolean));
-      setLastBotHeartbeat(evaluatedAt);
-      setHeartbeatPulse((pulse) => pulse + 1);
-    } catch (err) {
-      console.error("Borrower monitoring refresh error:", err);
-    }
-  };
+    };
 
   useEffect(() => {
     if (!showAdminPage || !isAdmin) return undefined;
@@ -973,11 +999,13 @@ export default function App() {
   const supplyApy = borrowApy * (utilization / 100) * 0.8;
   const utilizationClass = utilization >= 90 ? "danger" : utilization >= 80 ? "warning" : "healthy";
   const estimatedYield = Number(lenderSupplied) * (supplyApy / 100);
-  const hasLenderPosition = Number(lenderSupplied) > 0;
-  const hasCollateralPosition = Number(userCollateral) > 0;
-  const hasBorrowPosition = Number(userBorrowed) > 0;
+  const COLLATERAL_DUST_THRESHOLD = 0.01;
+  const ETH_DUST_THRESHOLD = 0.0001;
+  const hasLenderPosition = Number(lenderSupplied) > ETH_DUST_THRESHOLD;
+  const hasCollateralPosition = Number(userCollateral) >= COLLATERAL_DUST_THRESHOLD;
+  const hasBorrowPosition = Number(userBorrowed) > ETH_DUST_THRESHOLD;
   const hasAnyPosition = hasLenderPosition || hasCollateralPosition || hasBorrowPosition;
-  const healthClass = healthFactor === "∞" || Number(healthFactor) >= 1.5
+  const healthClass = healthFactor === "∞" || Number(healthFactor) >= 1.45
     ? "healthy"
     : Number(healthFactor) >= 1 ? "warning" : "danger";
   const borrowerStatusLabel = (status) => t(status);
@@ -1116,22 +1144,84 @@ export default function App() {
         </section>
       )}
 
-      <section className="action-container">
+      <section className={`action-container mode-${mainTab}`}>
         <div className="role-tabs" role="tablist" aria-label="Protocol action mode">
-          <button className={mainTab === "lend" ? "tab active" : "tab"} onClick={() => setMainTab("lend")}>{t("lendSupply")}</button>
-          <button className={mainTab === "borrow" ? "tab active" : "tab"} onClick={() => setMainTab("borrow")}>{t("borrowCollateral")}</button>
+          <button
+            className={`tab tab-lend ${mainTab === "lend" ? "active" : ""}`}
+            onClick={() => setMainTab("lend")}
+          >
+            <span className="tab-icon">🌱</span>
+            <div className="tab-info">
+              <span className="tab-title">{t("lendSupply")}</span>
+              <span className="tab-badge lend-badge">
+                +{supplyApy.toFixed(2)}% APY · {language === "vi" ? "Sinh lời" : "Earn"}
+              </span>
+            </div>
+          </button>
+
+          <button
+            className={`tab tab-borrow ${mainTab === "borrow" ? "active" : ""}`}
+            onClick={() => setMainTab("borrow")}
+          >
+            <span className="tab-icon">🛡️</span>
+            <div className="tab-info">
+              <span className="tab-title">{t("borrowCollateral")}</span>
+              <span className="tab-badge borrow-badge">
+                {language === "vi" ? "Cầm cố · Vay nợ (HF)" : "Collateral · Borrow (HF)"}
+              </span>
+            </div>
+          </button>
+        </div>
+
+        {/* Banner chỉ báo & hướng dẫn ngữ cảnh thao tác */}
+        <div className={`mode-guide-banner banner-${mainTab}`}>
+          {mainTab === "lend" ? (
+            <span>
+              💡 <strong>{language === "vi" ? "Chế độ Tạo thanh khoản:" : "Liquidity Mode:"}</strong>{" "}
+              {language === "vi"
+                ? "Gửi ETH vào hồ để nhận lợi tức APY thụ động từ lãi vay của hệ thống."
+                : "Deposit ETH into the pool to earn passive APY yield from protocol borrow fees."}
+            </span>
+          ) : (
+            <span>
+              ⚠️ <strong>{language === "vi" ? "Chế độ Vay thế chấp:" : "Borrow & Collateral Mode:"}</strong>{" "}
+              {language === "vi"
+                ? "Cầm cố mUSDT để vay ETH. Luôn giữ Chỉ số An toàn (HF) &gt; 1.00 để tránh bị bot thanh lý."
+                : "Stake mUSDT as collateral to borrow ETH. Keep Health Factor (HF) &gt; 1.00 to avoid liquidation."}
+            </span>
+          )}
         </div>
 
         {mainTab === "lend" ? (
           <div className="action-view">
             <div className="supply-list">
               <div className="supply-row">
-                <div><span>{t("availableToSupply")}</span><strong>{format(ethBalance)} ETH</strong></div>
-                <button className="secondary-button action-row-button" onClick={() => setLendAction(lendAction === "supply" ? "" : "supply")} disabled={busy || Number(ethBalance) <= 0}>{t("supply")}</button>
+                <div>
+                  <span>{t("availableToSupply")}</span>
+                  <strong>{format(ethBalance)} ETH</strong>
+                </div>
+                <button
+                  className="secondary-button action-row-button"
+                  onClick={() => setLendAction(lendAction === "supply" ? "" : "supply")}
+                  disabled={busy || Number(ethBalance) <= 0}
+                >
+                  {t("supply")}
+                </button>
               </div>
               <div className="supply-row">
-                <div><span>{t("suppliedBalance")}</span><strong>{format(lenderSupplied)} ETH</strong></div>
-                {hasLenderPosition && <button className="secondary-button action-row-button" onClick={() => setLendAction(lendAction === "withdraw" ? "" : "withdraw")} disabled={busy}>{t("withdraw")}</button>}
+                <div>
+                  <span>{t("suppliedBalance")}</span>
+                  <strong>{format(lenderSupplied)} ETH</strong>
+                </div>
+                {hasLenderPosition && (
+                  <button
+                    className="secondary-button action-row-button"
+                    onClick={() => setLendAction(lendAction === "withdraw" ? "" : "withdraw")}
+                    disabled={busy}
+                  >
+                    {t("withdraw")}
+                  </button>
+                )}
               </div>
             </div>
             {lendAction && (
@@ -1140,13 +1230,22 @@ export default function App() {
                   label={lendAction === "supply" ? t("amountToSupply") : t("amountToWithdraw")}
                   value={lendAction === "supply" ? depositEthAmount : withdrawEthAmount}
                   onChange={lendAction === "supply" ? setDepositEthAmount : setWithdrawEthAmount}
-                  onMax={() => lendAction === "supply" ? setDepositEthAmount(ethBalance) : setWithdrawEthAmount(String(liquiditySafeWithdrawETH))}
+                  onMax={() =>
+                    lendAction === "supply"
+                      ? setDepositEthAmount(ethBalance)
+                      : setWithdrawEthAmount(String(liquiditySafeWithdrawETH))
+                  }
                   unit="ETH"
                 />
                 <button
                   className="primary-button full"
                   onClick={lendAction === "supply" ? handleDepositETH : handleWithdrawETH}
-                  disabled={busy || Number(lendAction === "supply" ? depositEthAmount : withdrawEthAmount) <= 0 || Number(lendAction === "supply" ? depositEthAmount : withdrawEthAmount) > Number(lendAction === "supply" ? ethBalance : liquiditySafeWithdrawETH)}
+                  disabled={
+                    busy ||
+                    Number(lendAction === "supply" ? depositEthAmount : withdrawEthAmount) <= 0 ||
+                    Number(lendAction === "supply" ? depositEthAmount : withdrawEthAmount) >
+                      Number(lendAction === "supply" ? ethBalance : liquiditySafeWithdrawETH)
+                  }
                 >
                   {lendAction === "supply" ? t("supplyEth") : t("withdrawEth")}
                 </button>
@@ -1163,8 +1262,20 @@ export default function App() {
                   <span>{t("staked")}: {format(userCollateral)} mUSDT</span>
                 </div>
                 <div className="borrow-row-buttons">
-                  <button className="secondary-button" onClick={() => setBorrowAction(borrowAction === "depositCollateral" ? "" : "depositCollateral")} disabled={busy}>{t("depositCollateral")}</button>
-                  <button className="secondary-button" onClick={() => setBorrowAction(borrowAction === "withdrawCollateral" ? "" : "withdrawCollateral")} disabled={busy || !hasCollateralPosition}>{t("withdrawCollateral")}</button>
+                  <button
+                    className="secondary-button"
+                    onClick={() => setBorrowAction(borrowAction === "depositCollateral" ? "" : "depositCollateral")}
+                    disabled={busy}
+                  >
+                    {t("depositCollateral")}
+                  </button>
+                  <button
+                    className="secondary-button"
+                    onClick={() => setBorrowAction(borrowAction === "withdrawCollateral" ? "" : "withdrawCollateral")}
+                    disabled={busy || !hasCollateralPosition}
+                  >
+                    {t("withdrawCollateral")}
+                  </button>
                 </div>
               </div>
               <div className="borrow-action-row">
@@ -1174,32 +1285,50 @@ export default function App() {
                   <span>{t("currentDebt")}: {format(liveDebt)} ETH</span>
                 </div>
                 <div className="borrow-row-buttons">
-                  <button className="secondary-button" onClick={() => setBorrowAction(borrowAction === "borrow" ? "" : "borrow")} disabled={busy || liquiditySafeBorrowETH <= 0}>{t("borrowEth")}</button>
-                  <button className="secondary-button" onClick={() => setBorrowAction(borrowAction === "repay" ? "" : "repay")} disabled={busy || !hasBorrowPosition}>{t("repayEth")}</button>
+                  <button
+                    className="secondary-button"
+                    onClick={() => setBorrowAction(borrowAction === "borrow" ? "" : "borrow")}
+                    disabled={busy || liquiditySafeBorrowETH <= 0}
+                  >
+                    {t("borrowEth")}
+                  </button>
+                  <button
+                    className="secondary-button"
+                    onClick={() => setBorrowAction(borrowAction === "repay" ? "" : "repay")}
+                    disabled={busy || !hasBorrowPosition}
+                  >
+                    {t("repayEth")}
+                  </button>
                 </div>
               </div>
             </div>
             {borrowAction && (
               <div className="inline-drawer">
                 <AmountField
-                  label={{
-                    depositCollateral: t("amountToDeposit"),
-                    withdrawCollateral: t("amountToWithdraw"),
-                    borrow: t("amountToBorrow"),
-                    repay: t("amountToRepay"),
-                  }[borrowAction]}
-                  value={{
-                    depositCollateral: collateralAmount,
-                    withdrawCollateral: withdrawCollateralAmount,
-                    borrow: borrowAmount,
-                    repay: repayAmount,
-                  }[borrowAction]}
-                  onChange={{
-                    depositCollateral: setCollateralAmount,
-                    withdrawCollateral: setWithdrawCollateralAmount,
-                    borrow: setBorrowAmount,
-                    repay: setRepayAmount,
-                  }[borrowAction]}
+                  label={
+                    {
+                      depositCollateral: t("amountToDeposit"),
+                      withdrawCollateral: t("amountToWithdraw"),
+                      borrow: t("amountToBorrow"),
+                      repay: t("amountToRepay"),
+                    }[borrowAction]
+                  }
+                  value={
+                    {
+                      depositCollateral: collateralAmount,
+                      withdrawCollateral: withdrawCollateralAmount,
+                      borrow: borrowAmount,
+                      repay: repayAmount,
+                    }[borrowAction]
+                  }
+                  onChange={
+                    {
+                      depositCollateral: setCollateralAmount,
+                      withdrawCollateral: setWithdrawCollateralAmount,
+                      borrow: setBorrowAmount,
+                      repay: setRepayAmount,
+                    }[borrowAction]
+                  }
                   onMax={() => {
                     if (borrowAction === "depositCollateral") setCollateralAmount(usdtBalance);
                     if (borrowAction === "withdrawCollateral") setWithdrawCollateralAmount(formatMaxAmount(maxWithdrawAtSafeHealth));
@@ -1236,40 +1365,51 @@ export default function App() {
                 )}
                 <button
                   className="primary-button full"
-                  onClick={{
-                    depositCollateral: handleDepositCollateral,
-                    withdrawCollateral: executeRiskAwareAction,
-                    borrow: executeRiskAwareAction,
-                    repay: handleRepay,
-                  }[borrowAction]}
+                  onClick={
+                    {
+                      depositCollateral: handleDepositCollateral,
+                      withdrawCollateral: executeRiskAwareAction,
+                      borrow: executeRiskAwareAction,
+                      repay: handleRepay,
+                    }[borrowAction]
+                  }
                   disabled={
-                    busy
-                    || Number({
-                      depositCollateral: collateralAmount,
-                      withdrawCollateral: withdrawCollateralAmount,
-                      borrow: borrowAmount,
-                      repay: repayAmount,
-                    }[borrowAction]) <= 0
-                    || Number({
-                      depositCollateral: collateralAmount,
-                      withdrawCollateral: withdrawCollateralAmount,
-                      borrow: borrowAmount,
-                      repay: repayAmount,
-                    }[borrowAction]) > Number({
-                      depositCollateral: usdtBalance,
-                      withdrawCollateral: maxWithdrawAtProtocolHealth,
-                      borrow: liquiditySafeBorrowETH,
-                      repay: liveDebt,
-                    }[borrowAction])
-                    || ((borrowAction === "withdrawCollateral" || borrowAction === "borrow") && projectedHealthFactor < 1)
+                    busy ||
+                    Number(
+                      {
+                        depositCollateral: collateralAmount,
+                        withdrawCollateral: withdrawCollateralAmount,
+                        borrow: borrowAmount,
+                        repay: repayAmount,
+                      }[borrowAction]
+                    ) <= 0 ||
+                    Number(
+                      {
+                        depositCollateral: collateralAmount,
+                        withdrawCollateral: withdrawCollateralAmount,
+                        borrow: borrowAmount,
+                        repay: repayAmount,
+                      }[borrowAction]
+                    ) >
+                      Number(
+                        {
+                          depositCollateral: usdtBalance,
+                          withdrawCollateral: maxWithdrawAtProtocolHealth,
+                          borrow: liquiditySafeBorrowETH,
+                          repay: liveDebt,
+                        }[borrowAction]
+                      ) ||
+                    ((borrowAction === "withdrawCollateral" || borrowAction === "borrow") && projectedHealthFactor < 1)
                   }
                 >
-                  {`${t("confirm")} ${{
-                    depositCollateral: t("depositCollateral"),
-                    withdrawCollateral: t("withdrawCollateral"),
-                    borrow: t("borrowEth"),
-                    repay: t("repayEth"),
-                  }[borrowAction]}`}
+                  {`${t("confirm")} ${
+                    {
+                      depositCollateral: t("depositCollateral"),
+                      withdrawCollateral: t("withdrawCollateral"),
+                      borrow: t("borrowEth"),
+                      repay: t("repayEth"),
+                    }[borrowAction]
+                  }`}
                 </button>
               </div>
             )}
@@ -1370,20 +1510,31 @@ export default function App() {
 
           <div className="admin-stats-grid">
             {[
-              ["poolBalance", adminStats.poolBalance],
-              ["totalDeposited", adminStats.totalDeposited],
-              ["totalDebt", adminStats.totalDebt],
-              ["protocolFees", adminStats.protocolFees],
-              ["reserveBuffer", adminStats.reserveBuffer],
-              ["totalBadDebt", adminStats.totalBadDebt],
-              ["trackedBalance", adminStats.trackedBalance],
-              ["sweepableExcess", adminStats.sweepableExcess],
-              ["musdtEthBalance", adminStats.musdtEthBalance],
-              ["currentOraclePrice", adminStats.oraclePrice],
-            ].map(([label, value]) => (
-              <article className="admin-stat-card" key={label}>
-                <span>{t(label)}</span>
-                <strong>{format(value)} {label === "currentOraclePrice" ? "USD" : "ETH"}</strong>
+              { key: "poolBalance", val: adminStats.poolBalance, unit: "ETH", tone: "liquidity", icon: "🏦" },
+              { key: "totalDeposited", val: adminStats.totalDeposited, unit: "ETH", tone: "deposit", icon: "📥" },
+              { key: "totalDebt", val: adminStats.totalDebt, unit: "ETH", tone: "debt", icon: "💳" },
+              { key: "protocolFees", val: adminStats.protocolFees, unit: "ETH", tone: "fee", icon: "💎" },
+              { key: "reserveBuffer", val: adminStats.reserveBuffer, unit: "ETH", tone: "reserve", icon: "🛡️" },
+              { 
+                key: "totalBadDebt", 
+                val: adminStats.totalBadDebt, 
+                unit: "ETH", 
+                tone: Number(adminStats.totalBadDebt) > 0 ? "bad-debt-danger" : "bad-debt-safe", 
+                icon: "⚠️" 
+              },
+              { key: "trackedBalance", val: adminStats.trackedBalance, unit: "ETH", tone: "tracked", icon: "⚖️" },
+              { key: "sweepableExcess", val: adminStats.sweepableExcess, unit: "ETH", tone: "excess", icon: "✨" },
+              { key: "musdtEthBalance", val: adminStats.musdtEthBalance, unit: "ETH", tone: "token", icon: "🪙" },
+              { key: "currentOraclePrice", val: adminStats.oraclePrice, unit: "USD", tone: "oracle", icon: "📈" },
+            ].map(({ key, val, unit, tone, icon }) => (
+              <article className={`admin-stat-card tone-${tone}`} key={key}>
+                <div className="stat-card-header">
+                  <span className="stat-icon">{icon}</span>
+                  <span className="stat-label">{t(key)}</span>
+                </div>
+                <strong className="stat-value">
+                  {format(val)} <small>{unit}</small>
+                </strong>
               </article>
             ))}
           </div>
