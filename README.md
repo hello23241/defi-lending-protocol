@@ -1,57 +1,60 @@
-# Sample Hardhat 3 Project (`mocha` and `ethers`)
+# PeerPool: Decentralized Lending & Borrowing Protocol (EVM / Sepolia)
 
-This project showcases a Hardhat 3 project using `mocha` for tests and the `ethers` library for Ethereum interactions.
+PeerPool là giao thức cho vay phi tập trung (DeFi Lending Protocol) hoạt động trên mạng thử nghiệm Ethereum Sepolia. Giao thức cho phép người dùng cung cấp thanh khoản ETH để kiếm lãi suất (Lend / Supply), thế chấp tài sản token mUSDT để vay ETH (Borrow), đi kèm hệ thống Bot thanh lý tự động (Liquidator Bot) bảo vệ an toàn thanh khoản cho hồ vay.
 
-To learn more about Hardhat 3, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3](https://hardhat.org/hardhat3-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+---
 
-## Project Overview
+## 🏛️ Kiến trúc hệ thống (System Architecture)
 
-This example project includes:
+Dự án bao gồm 3 phân hệ chính hoạt động đồng bộ:
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using `mocha` and ethers.js
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+1. **Smart Contracts (Solidity v0.8.20):**
+   - `LendingPool.sol`: Quản lý nạp/rút ETH, nạp/rút thế chấp mUSDT, giải ngân khoản vay, tính lãi suất theo thời gian thực (per-second compounding) và thực thi thanh lý tài sản.
+   - `MockUSDT.sol`: Token ERC-20 chuẩn dùng làm tài sản thế chấp (Collateral), tích hợp cơ chế Faucet (mint tự do hoặc trade với ETH).
+   - `PriceOracle.sol`: Oracle cung cấp tỷ giá định giá tài sản theo USD, hỗ trợ cập nhật giá giả lập để kiểm thử kịch bản thanh lý nợ xấu.
 
-## Usage
+2. **Liquidator Bot & Sync Engine (TypeScript / Ethers.js v6):**
+   - Quét log lịch sử sự kiện `Borrow` thông qua RPC kết hợp Etherscan API V2 Fallback chống nghẽn / rate-limit.
+   - Lưu trữ danh sách người vay vào cơ sở dữ liệu **SQLite** ở chế độ **WAL Mode** (Write-Ahead Logging) tự phục hồi checkpoint sau sự cố.
+   - Kiểm tra sức khỏe danh sách ví hàng loạt (Mass Health Checking) qua **Multicall3** chỉ với 1 RPC call duy nhất mỗi 10 giây.
+   - Tự động điều chỉnh Dynamic Priority Gas Fee khi phát hiện vị thế nguy cấp ($HF < 0.95$) và tự động định tuyến lợi nhuận thu được về ví Developer.
 
-### Running Tests
+3. **Decentralized Application Frontend (React / Vite):**
+   - Giao diện trực quan phân định 2 chế độ: Cung cấp thanh khoản (Lend) và Vay thế chấp (Borrow).
+   - Thanh trượt mô phỏng Chỉ số An toàn (Health Factor Preview) theo thời gian thực trước khi người dùng xác nhận giao dịch.
+   - Bảng điều khiển quản trị (Admin Dashboard) hiển thị 10 thẻ trạng thái tài chính của hồ và bảng giám sát người vay theo thời gian thực.
+   - Hỗ trợ song ngữ: Tiếng Việt / English.
 
-To run all the tests in the project, execute the following command:
+---
 
-```shell
-npx hardhat test
-```
+## 📊 Tham số tài chính của giao thức (Protocol Parameters)
 
-You can also selectively run the Solidity or `mocha` tests:
+| Tham số | Giá trị | Giải thích |
+| :--- | :--- | :--- |
+| **Loan-to-Value (LTV)** | `65%` | Hạn mức vay tối đa tính trên tổng giá trị tài sản thế chấp |
+| **Liquidation Threshold** | `80%` | Ngưỡng rủi ro kích hoạt thanh lý vị thế nợ |
+| **Liquidation Bonus** | `5%` | Phần thưởng dành cho bot thanh lý khi xử lý nợ xấu |
+| **Base Borrow Rate** | `2.00%` | Lãi suất sàn cơ bản hàng năm |
+| **Health Factor Safe** | `≥ 1.45` | Ngưỡng an toàn bảo vệ vị thế người vay |
 
-```shell
-npx hardhat test solidity
-npx hardhat test mocha
-```
+$$\text{Health Factor (HF)} = \frac{\text{Collateral Value in ETH} \times \text{Liquidation Threshold}}{\text{Total Debt in ETH}}$$
 
-### Make a deployment to Sepolia
+* **$HF > 1.00$:** Vị thế an toàn.
+* **$HF < 1.00$:** Vị thế rơi vào trạng thái nợ xấu (Undercollateralized), bất kỳ ai hoặc Bot đều có quyền thanh lý để thu hồi vốn.
 
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
+---
 
-To run the deployment to a local chain:
+## 🚀 Hướng dẫn cài đặt và chạy thử nghiệm (Setup & Installation)
 
-```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
-```
+### 1. Yêu cầu môi trường
+- [Node.js](https://nodejs.org/) (Phiên bản `v18.x` hoặc `v20.x`)
+- [Git](https://git-scm.com/)
+- Trình duyệt tích hợp ví [MetaMask](https://metamask.io/) đã cấu hình mạng **Sepolia Testnet**.
 
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
+### 2. Cài đặt thư viện dependencies
+Clone repository và cài đặt các gói cần thiết:
 
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
-
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
-
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
-```
-
-After setting the variable, you can run the deployment with the Sepolia network:
-
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
-```
+```bash
+git clone [https://github.com/](https://github.com/)<your-username>/defi-lending-protocol.git
+cd defi-lending-protocol
+npm install
